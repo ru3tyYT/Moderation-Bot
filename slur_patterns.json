@@ -1,0 +1,46 @@
+{
+  "_README": "Add base words WITHOUT censoring. Pattern matching will catch all variations automatically.",
+  "_INSTRUCTIONS": {
+    "how_to_use": "Add base words in lowercase. The system will automatically catch variations like leetspeak, spacing, unicode, etc.",
+    "examples": {
+      "if_you_add": "word",
+      "it_catches": ["word", "w0rd", "w.o.r.d", "w o r d", "w0.r.d", "wοrd (unicode)", "w_o_r_d"]
+    },
+    "categories": "Organize by category for easier management"
+  },
+  
+  "racial_slurs": [
+    "_INSTRUCTIONS: Add actual words here for the bot to detect them properly",
+    "_EXAMPLE_FORMAT: Remove these example lines and add real words",
+    "example1",
+    "example2"
+  ],
+  
+  "homophobic_slurs": [
+    "_Add words here"
+  ],
+  
+  "transphobic_slurs": [
+    "_Add words here"
+  ],
+  
+  "ableist_slurs": [
+    "_Add words here"
+  ],
+  
+  "religious_slurs": [
+    "_Add words here"
+  ],
+  
+  "sexist_slurs": [
+    "_Add words here"
+  ],
+  
+  "general_hate_speech": [
+    "_Add words here"
+  ],
+  
+  "custom_server_specific": [
+    "_Add your server-specific words here"
+  ]
+}
