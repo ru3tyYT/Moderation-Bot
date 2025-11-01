@@ -1,46 +1,137 @@
 {
-  "_README": "Add base words WITHOUT censoring. Pattern matching will catch all variations automatically.",
-  "_INSTRUCTIONS": {
-    "how_to_use": "Add base words in lowercase. The system will automatically catch variations like leetspeak, spacing, unicode, etc.",
-    "examples": {
-      "if_you_add": "word",
-      "it_catches": ["word", "w0rd", "w.o.r.d", "w o r d", "w0.r.d", "wοrd (unicode)", "w_o_r_d"]
-    },
-    "categories": "Organize by category for easier management"
-  },
+  "_instructions": "Pattern matching will automatically catch all variations (leetspeak, spacing, unicode, etc.). Add base words only, lowercase, no asterisks.",
   
-  "racial_slurs": [
-    "_INSTRUCTIONS: Add actual words here for the bot to detect them properly",
-    "_EXAMPLE_FORMAT: Remove these example lines and add real words",
-    "example1",
-    "example2"
+  "racial_ethnic_slurs": [
+    "nigger",
+    "nigga",
+    "chink",
+    "spic",
+    "kike",
+    "faggot",
+    "fag",
+    "dyke",
+    "tranny",
+    "wetback",
+    "beaner",
+    "gook",
+    "towelhead",
+    "sandnigger",
+    "raghead",
+    "camel jockey",
+    "paki",
+    "zipperhead",
+    "cracker",
+    "honkey",
+    "honky",
+    "whitey",
+    "redneck",
+    "wigger",
+    "coon",
+    "jigaboo",
+    "jiggaboo",
+    "porch monkey",
+    "cotton picker",
+    "tar baby",
+    "spade",
+    "spook",
+    "sambo",
+    "jungle bunny",
+    "moon cricket",
+    "spearchucker",
+    "half-breed",
+    "redbone",
+    "octoroon",
+    "colored",
+    "chinaman",
+    "oriental",
+    "coolie",
+    "jap",
+    "nip",
+    "curry muncher",
+    "sand monkey",
+    "turban",
+    "haji",
+    "muzzie",
+    "kebab",
+    "greaser",
+    "taco bender",
+    "border hopper",
+    "fence hopper",
+    "cholo",
+    "vato",
+    "ese",
+    "guido",
+    "guinea",
+    "wop",
+    "dago",
+    "goombah",
+    "greaseball",
+    "mick",
+    "paddy",
+    "frog",
+    "kraut",
+    "jerry",
+    "hun",
+    "russki",
+    "commie",
+    "pollack",
+    "polack",
+    "bohunk",
+    "squarehead",
+    "limey",
+    "pom",
+    "pommy",
+    "boer",
+    "kaffir",
+    "zulu"
   ],
   
-  "homophobic_slurs": [
-    "_Add words here"
-  ],
-  
-  "transphobic_slurs": [
-    "_Add words here"
+  "homophobic_transphobic_slurs": [
+    "faggot",
+    "fag",
+    "dyke",
+    "tranny",
+    "queer"
   ],
   
   "ableist_slurs": [
-    "_Add words here"
+    "retard",
+    "retarded",
+    "mong",
+    "spastic",
+    "cripple",
+    "gimp",
+    "mongoloid",
+    "downie",
+    "autist",
+    "aspie",
+    "sped",
+    "window licker",
+    "mouth breather"
   ],
   
-  "religious_slurs": [
-    "_Add words here"
+  "sexist_gendered_slurs": [
+    "cunt",
+    "bitch",
+    "whore",
+    "slut",
+    "skank",
+    "tramp",
+    "hoe",
+    "thot"
   ],
   
-  "sexist_slurs": [
-    "_Add words here"
-  ],
-  
-  "general_hate_speech": [
-    "_Add words here"
-  ],
-  
-  "custom_server_specific": [
-    "_Add your server-specific words here"
+  "dehumanizing_terms": [
+    "subhuman",
+    "untermensch",
+    "mongrel",
+    "vermin",
+    "parasite",
+    "cockroach",
+    "savage",
+    "barbarian",
+    "animal",
+    "beast",
+    "creature"
   ]
 }
