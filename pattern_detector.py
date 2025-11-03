@@ -1,4 +1,4 @@
-# pattern_detector.py - Advanced slur detection with pattern matching
+# pattern_detector.py - Advanced Pattern Matching Engine
 import re
 from typing import List, Tuple
 
@@ -11,26 +11,32 @@ class PatternDetector:
     def __init__(self):
         # Character substitution mappings for leetspeak/bypass attempts
         self.substitutions = {
-            'a': ['a', '4', '@', 'α', 'а'],
-            'e': ['e', '3', 'ε', 'е'],
-            'i': ['i', '1', '!', 'l', '|', 'ı', 'і'],
-            'o': ['o', '0', 'ο', 'о'],
-            'u': ['u', 'v', 'υ', 'у'],
-            's': ['s', '5', '$', 'ş', 'ѕ'],
-            'g': ['g', '9', 'q'],
-            'z': ['z', '2'],
-            'b': ['b', '8'],
-            't': ['t', '7', '+'],
-            'c': ['c', '(', '<', 'с'],
-            'k': ['k', 'х'],
-            'n': ['n', 'η', 'п'],
-            'r': ['r', 'г'],
-            'h': ['h', 'н'],
-            'x': ['x', 'х'],
-            'p': ['p', 'р'],
-            'y': ['y', 'у'],
-            'w': ['w', 'vv', 'ω'],
-            'm': ['m', 'rn'],
+            'a': ['a', '4', '@', 'α', 'а', 'A'],
+            'e': ['e', '3', 'ε', 'е', 'E'],
+            'i': ['i', '1', '!', 'l', '|', 'ı', 'і', 'I'],
+            'o': ['o', '0', 'ο', 'о', 'O'],
+            'u': ['u', 'v', 'υ', 'у', 'U'],
+            's': ['s', '5', '$', 'ş', 'ѕ', 'S'],
+            'g': ['g', '9', 'q', 'G'],
+            'z': ['z', '2', 'Z'],
+            'b': ['b', '8', 'B'],
+            't': ['t', '7', '+', 'T'],
+            'c': ['c', '(', '<', 'с', 'C'],
+            'k': ['k', 'х', 'K'],
+            'n': ['n', 'η', 'п', 'N'],
+            'r': ['r', 'г', 'R'],
+            'h': ['h', 'н', 'H'],
+            'x': ['x', 'х', 'X'],
+            'p': ['p', 'р', 'P'],
+            'y': ['y', 'у', 'Y'],
+            'w': ['w', 'vv', 'ω', 'W'],
+            'm': ['m', 'rn', 'M'],
+            'd': ['d', 'D'],
+            'f': ['f', 'F'],
+            'j': ['j', 'J'],
+            'l': ['l', '1', 'L'],
+            'q': ['q', 'Q'],
+            'v': ['v', 'V'],
         }
     
     def create_pattern(self, base_word: str) -> str:
@@ -45,10 +51,13 @@ class PatternDetector:
                 # Create character class with all substitutions
                 char_class = ''.join(self.substitutions[char])
                 pattern_parts.append(f'[{re.escape(char_class)}]')
+            elif char == ' ':
+                # Space can be space, underscore, dash, dot, or nothing
+                pattern_parts.append('[\\s._-]*')
             else:
                 pattern_parts.append(re.escape(char))
         
-        # Join with optional spaces, dots, dashes, underscores
+        # Join with optional spaces, dots, dashes, underscores between characters
         pattern = '[\\s._-]*'.join(pattern_parts)
         
         # Word boundary or non-letter on both sides
@@ -61,15 +70,24 @@ class PatternDetector:
         Check text against pattern list.
         Returns: (found, list_of_matches)
         """
+        if not text or not pattern_list:
+            return False, []
+        
         text_lower = text.lower()
         found_matches = []
         
         for pattern in pattern_list:
-            regex = self.create_pattern(pattern)
-            matches = re.finditer(regex, text_lower, re.IGNORECASE)
-            
-            for match in matches:
-                found_matches.append(match.group(1))
+            try:
+                regex = self.create_pattern(pattern)
+                matches = re.finditer(regex, text_lower, re.IGNORECASE)
+                
+                for match in matches:
+                    matched_text = match.group(1)
+                    if matched_text and matched_text not in found_matches:
+                        found_matches.append(matched_text)
+            except Exception as e:
+                print(f"Error checking pattern '{pattern}': {e}")
+                continue
         
         return len(found_matches) > 0, found_matches
     
@@ -78,6 +96,9 @@ class PatternDetector:
         Normalize text by replacing common substitutions.
         Useful for additional checking.
         """
+        if not text:
+            return ""
+        
         normalized = text.lower()
         
         # Replace common substitutions
@@ -87,58 +108,16 @@ class PatternDetector:
             '1': 'i', '!': 'i', '|': 'i',
             '0': 'o',
             '5': 's', '$': 's',
-            '7': 't',
+            '7': 't', '+': 't',
             '8': 'b',
             '9': 'g',
+            '2': 'z',
         }
         
         for old, new in replacements.items():
             normalized = normalized.replace(old, new)
         
-        # Remove spaces, dots, dashes between letters
-        normalized = re.sub(r'([a-z])[\\s._-]+([a-z])', r'\\1\\2', normalized)
+        # Remove spaces, dots, dashes, underscores between letters
+        normalized = re.sub(r'([a-z])[\s._-]+([a-z])', r'\1\2', normalized)
         
         return normalized
-
-
-# Example usage in bot
-def enhanced_slur_check(text: str) -> Tuple[bool, List[str]]:
-    """
-    Enhanced slur detection using pattern matching.
-    Add your base words here (use first 2-3 letters only for reference).
-    """
-    detector = PatternDetector()
-    
-    # Base patterns - just reference prefixes, not full words
-    # The actual detection happens through pattern matching
-    base_patterns = [
-        # You would add base patterns here
-        # Example format (not actual slurs):
-        # "n*g", "f*g", "k*k", etc.
-        # The asterisks would be removed and pattern matching applied
-    ]
-    
-    # Check original text
-    found, matches = detector.check_text(text, base_patterns)
-    
-    if found:
-        return True, matches
-    
-    # Check normalized text (catches more variations)
-    normalized = detector.normalize_text(text)
-    found_norm, matches_norm = detector.check_text(normalized, base_patterns)
-    
-    return found_norm, matches_norm
-
-
-# Integration with bot.py
-def contains_slur_advanced(text: str) -> Tuple[bool, List[str]]:
-    """
-    Advanced slur detection that catches:
-    - Leetspeak: n1gger, f4ggot
-    - Spacing: n i g g e r
-    - Mixed: n 1 g g 3 r
-    - Unicode: using Cyrillic/Greek letters
-    - Dots/dashes: n.i.g.g.e.r, n-i-g-g-e-r
-    """
-    return enhanced_slur_check(text)
