@@ -1,21 +1,20 @@
-# bot.py - Main bot file with whitelist features
+# bot.py - Main bot file with free OCR/translation and severity system
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 import json
 import os
-from google.cloud import translate_v2 as translate
-from google.cloud import vision
 import google.generativeai as genai
 import asyncio
-from datetime import datetime, time, timezone
+from datetime import datetime, time
 import pytz
 import io
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from collections import defaultdict
 import aiohttp
-import re
+from PIL import Image
+import pytesseract
+from deep_translator import GoogleTranslator
 
 # Import pattern detector
 from pattern_detector import PatternDetector
@@ -28,10 +27,6 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-# Initialize APIs
-translate_client = translate.Client()
-vision_client = vision.ImageAnnotatorClient()
 
 # Initialize pattern detector
 detector = PatternDetector()
@@ -48,16 +43,13 @@ config = {
     "monitored_channel_id": None,
     "log_channel_id": None,
     "gemini_api_keys": [],
-    "current_key_index": 0
+    "current_key_index": 0,
+    "severity_threshold": 7
 }
 
 slur_patterns = []
 violation_logs = []
-whitelist = {
-    "users": [],
-    "roles": []
-}
-
+whitelist = {"users": [], "roles": []}
 daily_stats = {
     "messages_scanned": 0,
     "messages_flagged": 0,
@@ -70,11 +62,10 @@ def load_config():
     global config
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
-            config = json.load(f)
-            if "gemini_api_keys" not in config:
-                config["gemini_api_keys"] = []
-            if "current_key_index" not in config:
-                config["current_key_index"] = 0
+            loaded = json.load(f)
+            config.update(loaded)
+    if "severity_threshold" not in config:
+        config["severity_threshold"] = 7
 
 def save_config():
     with open(CONFIG_FILE, 'w') as f:
@@ -87,30 +78,21 @@ def load_slur_patterns():
         try:
             with open(SLURS_FILE, 'r') as f:
                 data = json.load(f)
-            
-            # Combine all categories
             for category, words in data.items():
                 if not category.startswith('_'):
                     patterns.extend([w for w in words if not w.startswith('_')])
-            
             slur_patterns = patterns
             print(f"Loaded {len(slur_patterns)} patterns from database")
         except Exception as e:
             print(f"Error loading patterns: {e}")
-            slur_patterns = []
     else:
         print(f"Warning: {SLURS_FILE} not found")
-        slur_patterns = []
 
 def load_whitelist():
     global whitelist
     if os.path.exists(WHITELIST_FILE):
         with open(WHITELIST_FILE, 'r') as f:
             whitelist = json.load(f)
-            if "users" not in whitelist:
-                whitelist["users"] = []
-            if "roles" not in whitelist:
-                whitelist["roles"] = []
     else:
         whitelist = {"users": [], "roles": []}
 
@@ -119,17 +101,12 @@ def save_whitelist():
         json.dump(whitelist, f, indent=4)
 
 def is_whitelisted(user: discord.Member) -> bool:
-    """Check if user is whitelisted"""
-    # Check user whitelist
     if user.id in whitelist["users"]:
         return True
-    
-    # Check role whitelist
     user_role_ids = [role.id for role in user.roles]
     for role_id in whitelist["roles"]:
         if role_id in user_role_ids:
             return True
-    
     return False
 
 def load_logs():
@@ -182,52 +159,66 @@ def rotate_api_key():
     return True
 
 def contains_slur(text):
-    """Enhanced slur detection with pattern matching"""
+    """Check if text contains potential slurs"""
     found, matches = detector.check_text(text, slur_patterns)
     if found:
         return True, matches
-    
-    # Also check normalized text
     normalized = detector.normalize_text(text)
     found_norm, matches_norm = detector.check_text(normalized, slur_patterns)
     return found_norm, matches_norm
 
-async def check_with_gemini(text):
+async def check_severity_with_gemini(text, detected_words):
+    """
+    Use Gemini to rate severity 1-10 and verify if actually harmful.
+    Only called when slurs are detected.
+    """
     max_retries = len(config["gemini_api_keys"]) if config["gemini_api_keys"] else 1
     
     for attempt in range(max_retries):
         try:
             gemini_model = get_current_gemini_model()
             if not gemini_model:
-                return {"is_harmful": False, "severity": "unknown", "categories": [], "reason": "No API keys configured"}
+                return {"is_harmful": True, "severity": 10, "reason": "No API key - flagging by default"}
             
-            prompt = f"""Analyze this message for harmful content. Check for:
-1. Death threats or threats of violence
-2. Terrorist content or extremist rhetoric
-3. Hate speech or severe harassment
-4. Incitement to violence
-5. Doxxing or sharing personal information maliciously
-6. Slurs or discriminatory language
+            prompt = f"""You are a content moderation assistant. Analyze this message for harmful intent.
 
-Message: "{text}"
+Detected words: {', '.join(detected_words)}
+Full message: "{text}"
 
-Respond in JSON format:
+Rate the severity from 1-10:
+- 1-3: Playful banter, friendly joking, no malice (e.g., friends calling each other "monkey" playfully)
+- 4-6: Potentially inappropriate but context matters, mild insults
+- 7-8: Clear insults, slurs used with negative intent, harassment
+- 9-10: Severe hate speech, direct slurs targeting identity, death threats, terrorism
+
+Consider:
+1. Is this playful banter between friends?
+2. Is the word being used to attack someone's identity?
+3. What is the overall tone and context?
+4. Is there malicious intent?
+
+Respond ONLY with valid JSON:
 {{
     "is_harmful": true/false,
-    "severity": "low/medium/high/critical",
-    "categories": ["list of applicable categories"],
-    "reason": "brief explanation"
+    "severity": 1-10,
+    "reason": "brief explanation of rating",
+    "context": "playful/neutral/hostile"
 }}"""
 
             response = gemini_model.generate_content(prompt)
             result_text = response.text.strip()
             
+            # Extract JSON
             if "```json" in result_text:
                 result_text = result_text.split("```json")[1].split("```")[0].strip()
             elif "```" in result_text:
                 result_text = result_text.split("```")[1].split("```")[0].strip()
             
             result = json.loads(result_text)
+            
+            # Ensure severity is an integer
+            result["severity"] = int(result.get("severity", 10))
+            
             return result
             
         except Exception as e:
@@ -237,24 +228,26 @@ Respond in JSON format:
                 if rotate_api_key():
                     continue
                 else:
-                    return {"is_harmful": False, "severity": "unknown", "categories": [], "reason": "All API keys rate limited"}
+                    return {"is_harmful": True, "severity": 10, "reason": "All API keys rate limited - flagging by default"}
             else:
                 print(f"Gemini API error: {e}")
-                return {"is_harmful": False, "severity": "unknown", "categories": [], "reason": f"API error: {e}"}
+                return {"is_harmful": True, "severity": 10, "reason": f"API error - flagging by default"}
     
-    return {"is_harmful": False, "severity": "unknown", "categories": [], "reason": "All API keys exhausted"}
+    return {"is_harmful": True, "severity": 10, "reason": "All API keys exhausted - flagging by default"}
 
-async def translate_text(text, target_lang='en'):
+async def translate_text_free(text):
+    """Translate using deep-translator (free, no API key needed)"""
     try:
-        if isinstance(text, bytes):
-            text = text.decode('utf-8')
-        result = translate_client.translate(text, target_language=target_lang)
-        return result['translatedText'], result['detectedSourceLanguage']
+        # Detect and translate
+        translator = GoogleTranslator(source='auto', target='en')
+        translated = translator.translate(text)
+        return translated, "auto"
     except Exception as e:
         print(f"Translation error: {e}")
         return text, 'unknown'
 
-async def ocr_image(image_url):
+async def ocr_image_free(image_url):
+    """Extract text from image using Tesseract OCR (free, local)"""
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(image_url) as resp:
@@ -262,22 +255,21 @@ async def ocr_image(image_url):
                     return None
                 image_data = await resp.read()
         
-        image = vision.Image(content=image_data)
-        response = vision_client.text_detection(image=image)
+        # Open image with PIL
+        image = Image.open(io.BytesIO(image_data))
         
-        if response.error.message:
-            raise Exception(response.error.message)
+        # Use Tesseract to extract text
+        text = pytesseract.image_to_string(image)
         
-        texts = response.text_annotations
-        if texts:
-            return texts[0].description
+        if text and text.strip():
+            return text.strip()
         return None
         
     except Exception as e:
         print(f"OCR error: {e}")
         return None
 
-async def log_violation(message, reason, translated_text, gemini_result=None, ocr_text=None):
+async def log_violation(message, reason, translated_text, severity_result=None, ocr_text=None):
     violation = {
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": message.author.id,
@@ -288,7 +280,8 @@ async def log_violation(message, reason, translated_text, gemini_result=None, oc
         "translated_text": translated_text,
         "ocr_text": ocr_text,
         "reason": reason,
-        "gemini_analysis": gemini_result,
+        "severity": severity_result.get("severity") if severity_result else 10,
+        "ai_analysis": severity_result,
         "attachments": [att.url for att in message.attachments]
     }
     
@@ -306,15 +299,26 @@ async def log_violation(message, reason, translated_text, gemini_result=None, oc
     if not log_channel:
         return
     
+    # Color based on severity
+    severity = severity_result.get("severity", 10) if severity_result else 10
+    if severity >= 9:
+        color = discord.Color.dark_red()
+    elif severity >= 7:
+        color = discord.Color.red()
+    elif severity >= 5:
+        color = discord.Color.orange()
+    else:
+        color = discord.Color.yellow()
+    
     embed = discord.Embed(
-        title="🚨 Potential Violation Detected",
-        color=discord.Color.red(),
+        title=f"🚨 Violation Detected - Severity {severity}/10",
+        color=color,
         timestamp=datetime.utcnow()
     )
     
     embed.add_field(name="User", value=f"{message.author.mention} ({message.author.id})", inline=False)
     embed.add_field(name="Channel", value=message.channel.mention, inline=True)
-    embed.add_field(name="Reason", value=reason, inline=True)
+    embed.add_field(name="Severity", value=f"**{severity}/10**", inline=True)
     
     if message.content:
         original_content = message.content[:1000] if len(message.content) <= 1000 else message.content[:1000] + "..."
@@ -322,16 +326,16 @@ async def log_violation(message, reason, translated_text, gemini_result=None, oc
     
     if translated_text and translated_text != message.content:
         translated_preview = translated_text[:1000] if len(translated_text) <= 1000 else translated_text[:1000] + "..."
-        embed.add_field(name="Translated (English)", value=f"```{translated_preview}```", inline=False)
+        embed.add_field(name="Translated", value=f"```{translated_preview}```", inline=False)
     
     if ocr_text:
         ocr_preview = ocr_text[:1000] if len(ocr_text) <= 1000 else ocr_text[:1000] + "..."
-        embed.add_field(name="Text from Image (OCR)", value=f"```{ocr_preview}```", inline=False)
+        embed.add_field(name="Text from Image", value=f"```{ocr_preview}```", inline=False)
     
-    if gemini_result and gemini_result.get("is_harmful"):
+    if severity_result:
         embed.add_field(
             name="AI Analysis", 
-            value=f"**Severity:** {gemini_result.get('severity', 'unknown')}\n**Categories:** {', '.join(gemini_result.get('categories', []))}\n**Reason:** {gemini_result.get('reason', 'N/A')}", 
+            value=f"**Context:** {severity_result.get('context', 'unknown')}\n**Reason:** {severity_result.get('reason', 'N/A')}", 
             inline=False
         )
     
@@ -342,7 +346,12 @@ async def log_violation(message, reason, translated_text, gemini_result=None, oc
                 embed.set_thumbnail(url=att.url)
                 break
     
-    embed.add_field(name="Action Required", value="⚠️ Please review and take appropriate action", inline=False)
+    threshold = config.get("severity_threshold", 7)
+    if severity >= threshold:
+        embed.add_field(name="⚠️ Action Taken", value=f"Message deleted (severity {severity} ≥ threshold {threshold})", inline=False)
+    else:
+        embed.add_field(name="ℹ️ No Action", value=f"Logged only (severity {severity} < threshold {threshold})", inline=False)
+    
     embed.set_footer(text=f"User ID: {message.author.id}")
     
     await log_channel.send(embed=embed)
@@ -359,11 +368,7 @@ async def generate_daily_report():
     fig.suptitle(f'Daily Moderation Report - {daily_stats["date"]}', fontsize=16, fontweight='bold')
     
     categories = ['Messages\nScanned', 'Messages\nFlagged', 'Unique\nUsers']
-    values = [
-        daily_stats["messages_scanned"],
-        daily_stats["messages_flagged"],
-        len(daily_stats["users_caught"])
-    ]
+    values = [daily_stats["messages_scanned"], daily_stats["messages_flagged"], len(daily_stats["users_caught"])]
     colors = ['#5865F2', '#ED4245', '#FEE75C']
     ax1.bar(categories, values, color=colors, edgecolor='black', linewidth=1.5)
     ax1.set_title('Overall Statistics', fontweight='bold')
@@ -400,38 +405,27 @@ async def generate_daily_report():
     📊 DAILY SUMMARY
     ━━━━━━━━━━━━━━━━━━━━━━━━━
     
-    📨 Total Messages Scanned: {daily_stats["messages_scanned"]}
-    
+    📨 Messages Scanned: {daily_stats["messages_scanned"]}
     🚨 Messages Flagged: {daily_stats["messages_flagged"]}
-    
-    👥 Unique Users Caught: {len(daily_stats["users_caught"])}
-    
+    👥 Unique Users: {len(daily_stats["users_caught"])}
     📈 Flag Rate: {(daily_stats["messages_flagged"] / daily_stats["messages_scanned"] * 100) if daily_stats["messages_scanned"] > 0 else 0:.2f}%
-    
     ⏰ Peak Hour: {max(daily_stats["hourly_scans"].items(), key=lambda x: x[1])[0] if daily_stats["hourly_scans"] else "N/A"}:00
-    
-    🔑 API Key: #{config["current_key_index"] + 1} of {len(config["gemini_api_keys"])}
-    
-    👤 Whitelisted Users: {len(whitelist["users"])}
-    👥 Whitelisted Roles: {len(whitelist["roles"])}
+    🔑 API Keys: {len(config["gemini_api_keys"])}
+    👤 Whitelisted: {len(whitelist["users"])} users, {len(whitelist["roles"])} roles
+    ⚖️ Severity Threshold: {config.get("severity_threshold", 7)}/10
     """
     ax4.text(0.1, 0.9, summary_text, fontsize=11, verticalalignment='top', 
              family='monospace', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
     
     plt.tight_layout()
-    
     buffer = io.BytesIO()
     plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
     buffer.seek(0)
     plt.close()
     
     file = discord.File(buffer, filename='daily_report.png')
-    embed = discord.Embed(
-        title="📊 Daily Moderation Report",
-        description=f"Report for **{daily_stats['date']}**",
-        color=discord.Color.blue(),
-        timestamp=datetime.utcnow()
-    )
+    embed = discord.Embed(title="📊 Daily Moderation Report", description=f"Report for **{daily_stats['date']}**",
+                          color=discord.Color.blue(), timestamp=datetime.utcnow())
     embed.set_image(url="attachment://daily_report.png")
     embed.set_footer(text="Next report in 24 hours")
     
@@ -458,196 +452,167 @@ async def on_ready():
     await bot.tree.sync()
     daily_report_task.start()
     print(f'{bot.user} has connected to Discord!')
-    print(f'Loaded {len(slur_patterns)} patterns from database')
-    print(f'Loaded {len(violation_logs)} violation logs')
-    print(f'Whitelisted users: {len(whitelist["users"])}, roles: {len(whitelist["roles"])}')
-    print(f'Monitoring enabled: {config["enabled"]}')
-    print(f'Active API keys: {len(config["gemini_api_keys"])}')
+    print(f'Loaded {len(slur_patterns)} patterns')
+    print(f'Whitelisted: {len(whitelist["users"])} users, {len(whitelist["roles"])} roles')
+    print(f'Severity threshold: {config.get("severity_threshold", 7)}/10')
+    print(f'API keys: {len(config["gemini_api_keys"])}')
 
-# Whitelist commands
-@bot.tree.command(name="whitelist_user", description="Add a user to the whitelist")
-@app_commands.describe(user="The user to whitelist")
+@bot.tree.command(name="setseverity", description="Set minimum severity for punishment (1-10)")
+@app_commands.describe(threshold="Minimum severity (7+ recommended)")
+async def setseverity(interaction: discord.Interaction, threshold: int):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        return
+    
+    if threshold < 1 or threshold > 10:
+        await interaction.response.send_message("❌ Threshold must be 1-10", ephemeral=True)
+        return
+    
+    config["severity_threshold"] = threshold
+    save_config()
+    await interaction.response.send_message(f"✅ Severity threshold set to **{threshold}/10**\nMessages rated {threshold}+ will be deleted.", ephemeral=True)
+
+@bot.tree.command(name="whitelist_user", description="Whitelist a user")
+@app_commands.describe(user="User to whitelist")
 async def whitelist_user(interaction: discord.Interaction, user: discord.User):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if user.id in whitelist["users"]:
-        await interaction.response.send_message(f"⚠️ {user.mention} is already whitelisted.", ephemeral=True)
+        await interaction.response.send_message(f"⚠️ {user.mention} already whitelisted.", ephemeral=True)
         return
-    
     whitelist["users"].append(user.id)
     save_whitelist()
-    await interaction.response.send_message(f"✅ Added {user.mention} to whitelist. They will bypass all filters.", ephemeral=True)
+    await interaction.response.send_message(f"✅ Whitelisted {user.mention}", ephemeral=True)
 
-@bot.tree.command(name="unwhitelist_user", description="Remove a user from the whitelist")
-@app_commands.describe(user="The user to remove from whitelist")
+@bot.tree.command(name="unwhitelist_user", description="Remove user from whitelist")
+@app_commands.describe(user="User to remove")
 async def unwhitelist_user(interaction: discord.Interaction, user: discord.User):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if user.id not in whitelist["users"]:
-        await interaction.response.send_message(f"⚠️ {user.mention} is not whitelisted.", ephemeral=True)
+        await interaction.response.send_message(f"⚠️ {user.mention} not whitelisted.", ephemeral=True)
         return
-    
     whitelist["users"].remove(user.id)
     save_whitelist()
     await interaction.response.send_message(f"✅ Removed {user.mention} from whitelist.", ephemeral=True)
 
-@bot.tree.command(name="whitelist_role", description="Add a role to the whitelist")
-@app_commands.describe(role="The role to whitelist")
+@bot.tree.command(name="whitelist_role", description="Whitelist a role")
+@app_commands.describe(role="Role to whitelist")
 async def whitelist_role(interaction: discord.Interaction, role: discord.Role):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if role.id in whitelist["roles"]:
-        await interaction.response.send_message(f"⚠️ {role.mention} is already whitelisted.", ephemeral=True)
+        await interaction.response.send_message(f"⚠️ {role.mention} already whitelisted.", ephemeral=True)
         return
-    
     whitelist["roles"].append(role.id)
     save_whitelist()
-    await interaction.response.send_message(f"✅ Added {role.mention} to whitelist. All members with this role will bypass filters.", ephemeral=True)
+    await interaction.response.send_message(f"✅ Whitelisted role {role.mention}", ephemeral=True)
 
-@bot.tree.command(name="unwhitelist_role", description="Remove a role from the whitelist")
-@app_commands.describe(role="The role to remove from whitelist")
+@bot.tree.command(name="unwhitelist_role", description="Remove role from whitelist")
+@app_commands.describe(role="Role to remove")
 async def unwhitelist_role(interaction: discord.Interaction, role: discord.Role):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if role.id not in whitelist["roles"]:
-        await interaction.response.send_message(f"⚠️ {role.mention} is not whitelisted.", ephemeral=True)
+        await interaction.response.send_message(f"⚠️ {role.mention} not whitelisted.", ephemeral=True)
         return
-    
     whitelist["roles"].remove(role.id)
     save_whitelist()
     await interaction.response.send_message(f"✅ Removed {role.mention} from whitelist.", ephemeral=True)
 
-@bot.tree.command(name="whitelist_list", description="View all whitelisted users and roles")
+@bot.tree.command(name="whitelist_list", description="View whitelist")
 async def whitelist_list(interaction: discord.Interaction):
     embed = discord.Embed(title="⚪ Whitelist", color=discord.Color.blue())
     
-    # Users
     if whitelist["users"]:
         users_text = []
         for user_id in whitelist["users"]:
             user = bot.get_user(user_id)
-            if user:
-                users_text.append(f"{user.mention} ({user.id})")
-            else:
-                users_text.append(f"Unknown User ({user_id})")
+            users_text.append(f"{user.mention} ({user.id})" if user else f"Unknown ({user_id})")
         embed.add_field(name=f"👤 Users ({len(whitelist['users'])})", value="\n".join(users_text) or "None", inline=False)
     else:
         embed.add_field(name="👤 Users", value="None", inline=False)
     
-    # Roles
     if whitelist["roles"]:
         roles_text = []
         for role_id in whitelist["roles"]:
             role = interaction.guild.get_role(role_id)
-            if role:
-                roles_text.append(f"{role.mention} ({role.id})")
-            else:
-                roles_text.append(f"Unknown Role ({role_id})")
+            roles_text.append(f"{role.mention} ({role.id})" if role else f"Unknown ({role_id})")
         embed.add_field(name=f"👥 Roles ({len(whitelist['roles'])})", value="\n".join(roles_text) or "None", inline=False)
     else:
         embed.add_field(name="👥 Roles", value="None", inline=False)
     
-    embed.set_footer(text="Whitelisted users/roles bypass all filters")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="addkey", description="Add a Gemini API key")
-@app_commands.describe(api_key="The API key to add")
+@bot.tree.command(name="addkey", description="Add Gemini API key")
+@app_commands.describe(api_key="API key")
 async def addkey(interaction: discord.Interaction, api_key: str):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if api_key in config["gemini_api_keys"]:
-        await interaction.response.send_message("⚠️ This API key is already added.", ephemeral=True)
+        await interaction.response.send_message("⚠️ Key already added.", ephemeral=True)
         return
-    
     config["gemini_api_keys"].append(api_key)
     save_config()
-    await interaction.response.send_message(f"✅ API key added! Total keys: {len(config['gemini_api_keys'])}", ephemeral=True)
+    await interaction.response.send_message(f"✅ Added key! Total: {len(config['gemini_api_keys'])}", ephemeral=True)
 
-@bot.tree.command(name="listkeys", description="List all API keys")
+@bot.tree.command(name="listkeys", description="List API keys")
 async def listkeys(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if not config["gemini_api_keys"]:
-        await interaction.response.send_message("⚠️ No API keys configured.", ephemeral=True)
+        await interaction.response.send_message("⚠️ No keys configured.", ephemeral=True)
         return
-    
-    key_list = "\n".join([
-        f"{'➡️' if i == config['current_key_index'] else '  '} Key #{i+1}: {key[:8]}...{key[-4:]}" 
-        for i, key in enumerate(config["gemini_api_keys"])
-    ])
-    
-    await interaction.response.send_message(f"**API Keys ({len(config['gemini_api_keys'])} total):**\n```{key_list}```\n➡️ = Currently active", ephemeral=True)
+    key_list = "\n".join([f"{'➡️' if i == config['current_key_index'] else '  '} Key #{i+1}: {key[:8]}...{key[-4:]}" 
+                          for i, key in enumerate(config["gemini_api_keys"])])
+    await interaction.response.send_message(f"**API Keys ({len(config['gemini_api_keys'])})**:\n```{key_list}```", ephemeral=True)
 
-@bot.tree.command(name="removekey", description="Remove an API key")
-@app_commands.describe(key_number="Key number to remove")
+@bot.tree.command(name="removekey", description="Remove API key")
+@app_commands.describe(key_number="Key number")
 async def removekey(interaction: discord.Interaction, key_number: int):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     if key_number < 1 or key_number > len(config["gemini_api_keys"]):
-        await interaction.response.send_message(f"❌ Invalid key number. Must be 1-{len(config['gemini_api_keys'])}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Invalid. Must be 1-{len(config['gemini_api_keys'])}", ephemeral=True)
         return
-    
-    removed_key = config["gemini_api_keys"].pop(key_number - 1)
+    removed = config["gemini_api_keys"].pop(key_number - 1)
     if config["current_key_index"] >= len(config["gemini_api_keys"]) and config["gemini_api_keys"]:
         config["current_key_index"] = 0
     save_config()
-    
-    await interaction.response.send_message(f"✅ Removed key #{key_number}: {removed_key[:8]}...{removed_key[-4:]}", ephemeral=True)
+    await interaction.response.send_message(f"✅ Removed key #{key_number}", ephemeral=True)
 
-@bot.tree.command(name="user", description="Check user violation history")
-@app_commands.describe(user="The user to check")
+@bot.tree.command(name="user", description="Check user history")
+@app_commands.describe(user="User to check")
 async def check_user(interaction: discord.Interaction, user: discord.User):
     user_violations = [log for log in violation_logs if log["user_id"] == user.id]
     
     if not user_violations:
-        embed = discord.Embed(
-            title="✅ Clean Record",
-            description=f"{user.mention} has no recorded violations.",
-            color=discord.Color.green()
-        )
+        embed = discord.Embed(title="✅ Clean Record", description=f"{user.mention} has no violations.", color=discord.Color.green())
         embed.set_thumbnail(url=user.display_avatar.url)
-        
-        # Check if whitelisted
         if user.id in whitelist["users"]:
-            embed.add_field(name="Whitelist Status", value="⚪ User is whitelisted", inline=False)
-        
+            embed.add_field(name="Status", value="⚪ Whitelisted", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
     
-    embed = discord.Embed(
-        title="📋 User Violation History",
-        description=f"**User:** {user.mention} ({user.id})\n**Total Violations:** {len(user_violations)}",
-        color=discord.Color.red()
-    )
+    embed = discord.Embed(title="📋 Violation History", description=f"**User:** {user.mention}\n**Total:** {len(user_violations)}", color=discord.Color.red())
     embed.set_thumbnail(url=user.display_avatar.url)
     
-    # Check if whitelisted
     if user.id in whitelist["users"]:
-        embed.add_field(name="Whitelist Status", value="⚪ User is whitelisted (bypasses filters)", inline=False)
+        embed.add_field(name="Status", value="⚪ Whitelisted", inline=False)
     
-    for i, violation in enumerate(user_violations[-5:], 1):
-        timestamp = datetime.fromisoformat(violation["timestamp"]).strftime("%Y-%m-%d %H:%M UTC")
-        content = violation["message_content"][:100] + "..." if len(violation["message_content"]) > 100 else violation["message_content"]
-        
-        embed.add_field(
-            name=f"Violation #{len(user_violations) - 5 + i}",
-            value=f"**Time:** {timestamp}\n**Reason:** {violation['reason']}\n**Message:** `{content}`",
-            inline=False
-        )
+    for i, v in enumerate(user_violations[-5:], 1):
+        timestamp = datetime.fromisoformat(v["timestamp"]).strftime("%Y-%m-%d %H:%M")
+        content = v["message_content"][:100] + "..." if len(v["message_content"]) > 100 else v["message_content"]
+        severity = v.get("severity", "?")
+        embed.add_field(name=f"Violation #{len(user_violations) - 5 + i}", 
+                        value=f"**Time:** {timestamp}\n**Severity:** {severity}/10\n**Message:** `{content}`", inline=False)
     
     if len(user_violations) > 5:
         embed.set_footer(text=f"Showing last 5 of {len(user_violations)} violations")
@@ -658,66 +623,58 @@ async def check_user(interaction: discord.Interaction, user: discord.User):
 @app_commands.describe(channel="Channel to monitor")
 async def setup(interaction: discord.Interaction, channel: discord.TextChannel):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     config["monitored_channel_id"] = channel.id
     save_config()
-    await interaction.response.send_message(f"✅ Monitoring channel set to {channel.mention}", ephemeral=True)
+    await interaction.response.send_message(f"✅ Monitoring {channel.mention}", ephemeral=True)
 
 @bot.tree.command(name="setlog", description="Set log channel")
-@app_commands.describe(channel="Channel for logs")
+@app_commands.describe(channel="Log channel")
 async def setlog(interaction: discord.Interaction, channel: discord.TextChannel):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     config["log_channel_id"] = channel.id
     save_config()
     await interaction.response.send_message(f"✅ Log channel set to {channel.mention}", ephemeral=True)
 
 @bot.tree.command(name="toggle", description="Enable/disable bot")
-@app_commands.describe(enabled="Turn on or off")
+@app_commands.describe(enabled="Turn on/off")
 async def toggle(interaction: discord.Interaction, enabled: bool):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
     config["enabled"] = enabled
     save_config()
     status = "enabled" if enabled else "disabled"
-    await interaction.response.send_message(f"✅ Moderation bot is now **{status}**", ephemeral=True)
+    await interaction.response.send_message(f"✅ Bot is now **{status}**", ephemeral=True)
 
 @bot.tree.command(name="status", description="Check bot status")
 async def status(interaction: discord.Interaction):
-    monitored_channel = bot.get_channel(config.get("monitored_channel_id"))
-    log_channel = bot.get_channel(config.get("log_channel_id"))
-    
-    monitored_name = monitored_channel.mention if monitored_channel else "Not set"
-    log_name = log_channel.mention if log_channel else "Not set"
+    monitored = bot.get_channel(config.get("monitored_channel_id"))
+    log_ch = bot.get_channel(config.get("log_channel_id"))
     
     embed = discord.Embed(title="🛡️ Bot Status", color=discord.Color.blue())
     embed.add_field(name="Enabled", value="✅ Yes" if config["enabled"] else "❌ No", inline=True)
-    embed.add_field(name="Monitored Channel", value=monitored_name, inline=True)
-    embed.add_field(name="Log Channel", value=log_name, inline=True)
-    embed.add_field(name="Patterns in Database", value=str(len(slur_patterns)), inline=True)
+    embed.add_field(name="Monitored", value=monitored.mention if monitored else "Not set", inline=True)
+    embed.add_field(name="Log Channel", value=log_ch.mention if log_ch else "Not set", inline=True)
+    embed.add_field(name="Patterns", value=str(len(slur_patterns)), inline=True)
     embed.add_field(name="API Keys", value=str(len(config["gemini_api_keys"])), inline=True)
-    embed.add_field(name="Current Key", value=f"#{config['current_key_index'] + 1}" if config["gemini_api_keys"] else "None", inline=True)
+    embed.add_field(name="Severity Threshold", value=f"{config.get('severity_threshold', 7)}/10", inline=True)
     embed.add_field(name="Today's Scans", value=str(daily_stats["messages_scanned"]), inline=True)
     embed.add_field(name="Today's Flags", value=str(daily_stats["messages_flagged"]), inline=True)
     embed.add_field(name="Total Violations", value=str(len(violation_logs)), inline=True)
-    embed.add_field(name="Whitelisted Users", value=str(len(whitelist["users"])), inline=True)
-    embed.add_field(name="Whitelisted Roles", value=str(len(whitelist["roles"])), inline=True)
+    embed.add_field(name="Whitelisted", value=f"{len(whitelist['users'])} users, {len(whitelist['roles'])} roles", inline=False)
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="forcereport", description="Generate daily report now")
+@bot.tree.command(name="forcereport", description="Generate report now")
 async def forcereport(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
         return
-    
-    await interaction.response.send_message("⏳ Generating report...", ephemeral=True)
+    await interaction.response.send_message("⏳ Generating...", ephemeral=True)
     await generate_daily_report()
 
 @bot.event
@@ -728,9 +685,8 @@ async def on_message(message):
     if not config["enabled"] or message.channel.id != config.get("monitored_channel_id"):
         return
     
-    # Check if user is whitelisted
+    # Check whitelist
     if isinstance(message.author, discord.Member) and is_whitelisted(message.author):
-        print(f"Skipping whitelisted user: {message.author}")
         return
     
     try:
@@ -739,88 +695,74 @@ async def on_message(message):
         daily_stats["hourly_scans"][str(current_hour)] += 1
         save_stats()
         
+        # Translate message
         translated_text = message.content
-        detected_lang = 'en'
-        
         if message.content:
-            translated_text, detected_lang = await translate_text(message.content)
+            translated_text, detected_lang = await translate_text_free(message.content)
         
+        # Check for slurs in both original and translated
         has_slur_original, found_slurs_original = contains_slur(message.content)
         has_slur_translated, found_slurs_translated = contains_slur(translated_text)
         
         has_slur = has_slur_original or has_slur_translated
         all_found_slurs = list(set(found_slurs_original + found_slurs_translated))
         
+        # Check images with OCR
         ocr_text = None
         if message.attachments:
             for attachment in message.attachments:
                 if attachment.content_type and attachment.content_type.startswith('image'):
-                    ocr_text = await ocr_image(attachment.url)
+                    ocr_text = await ocr_image_free(attachment.url)
                     if ocr_text:
-                        translated_ocr, _ = await translate_text(ocr_text)
+                        translated_ocr, _ = await translate_text_free(ocr_text)
                         has_slur_ocr, found_slurs_ocr = contains_slur(translated_ocr)
                         if has_slur_ocr:
                             has_slur = True
                             all_found_slurs.extend(found_slurs_ocr)
                         translated_text += f"\n[Image text: {translated_ocr}]"
         
-        gemini_result = await check_with_gemini(translated_text)
-        
-        should_report = False
-        violation_reason = []
-        
+        # If slurs detected, check severity with Gemini
         if has_slur:
-            should_report = True
-            violation_reason.append(f"Slurs detected: {', '.join(list(set(all_found_slurs))[:5])}")
-        
-        if gemini_result.get("is_harmful"):
-            should_report = True
-            categories = gemini_result.get("categories", [])
-            violation_reason.append(f"AI detected: {', '.join(categories)}")
-        
-        if should_report:
-            await message.delete()
+            severity_result = await check_severity_with_gemini(translated_text, all_found_slurs)
+            severity = severity_result.get("severity", 10)
+            threshold = config.get("severity_threshold", 7)
             
-            try:
-                dm_embed = discord.Embed(
-                    title="⚠️ Message Removed",
-                    description="Your message was removed by the moderation system.",
-                    color=discord.Color.orange()
-                )
-                dm_embed.add_field(
-                    name="Why was my message removed?",
-                    value="\n".join(violation_reason),
-                    inline=False
-                )
-                dm_embed.add_field(
-                    name="What should I do?",
-                    value="Please be more careful with your language. Repeated violations may result in moderation action.",
-                    inline=False
-                )
-                dm_embed.add_field(name="Server", value=message.guild.name, inline=True)
-                dm_embed.add_field(name="Channel", value=message.channel.mention, inline=True)
-                dm_embed.set_footer(text="If you believe this was a mistake, contact server moderators")
+            # Only take action if severity meets threshold
+            if severity >= threshold:
+                # Delete message
+                await message.delete()
                 
-                await message.author.send(embed=dm_embed)
-            except discord.Forbidden:
-                print(f"Could not DM user {message.author}")
+                # Send DM
+                try:
+                    dm_embed = discord.Embed(
+                        title="⚠️ Message Removed",
+                        description="Your message was removed by moderation.",
+                        color=discord.Color.orange()
+                    )
+                    dm_embed.add_field(
+                        name="Reason",
+                        value=f"Content rated **{severity}/10** severity\n{severity_result.get('reason', 'Inappropriate content')}",
+                        inline=False
+                    )
+                    dm_embed.add_field(name="Server", value=message.guild.name, inline=True)
+                    dm_embed.add_field(name="Channel", value=message.channel.mention, inline=True)
+                    dm_embed.set_footer(text="Contact moderators if you believe this is a mistake")
+                    await message.author.send(embed=dm_embed)
+                except discord.Forbidden:
+                    print(f"Could not DM {message.author}")
             
-            reason_text = " | ".join(violation_reason)
-            await log_violation(message, reason_text, translated_text, gemini_result, ocr_text)
+            # Log violation (regardless of severity)
+            reason = f"Detected: {', '.join(list(set(all_found_slurs))[:5])} - Severity: {severity}/10"
+            await log_violation(message, reason, translated_text, severity_result, ocr_text)
             
     except Exception as e:
-        print(f"Error processing message: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
 
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-    
     if not TOKEN:
-        print("Error: DISCORD_BOT_TOKEN environment variable not set")
+        print("Error: DISCORD_BOT_TOKEN not set")
         exit(1)
-    
-    if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        print("Warning: GOOGLE_APPLICATION_CREDENTIALS not set. Translation and OCR may not work.")
-    
     bot.run(TOKEN)
