@@ -1,5 +1,5 @@
 {
-  "_instructions": "Pattern matching will automatically catch all variations (leetspeak, spacing, unicode, etc.). Add base words only, lowercase, no asterisks.",
+  "_instructions": "Pattern matching automatically catches all variations (leetspeak, spacing, unicode, etc.). Add base words only, lowercase, NO asterisks.",
   
   "racial_ethnic_slurs": [
     "nigger",
@@ -7,10 +7,6 @@
     "chink",
     "spic",
     "kike",
-    "faggot",
-    "fag",
-    "dyke",
-    "tranny",
     "wetback",
     "beaner",
     "gook",
@@ -49,6 +45,8 @@
     "nip",
     "curry muncher",
     "sand monkey",
+    "goat fucker",
+    "camel fucker",
     "turban",
     "haji",
     "muzzie",
@@ -68,9 +66,11 @@
     "greaseball",
     "mick",
     "paddy",
+    "potato nigger",
     "frog",
     "kraut",
     "jerry",
+    "nazi",
     "hun",
     "russki",
     "commie",
@@ -83,7 +83,15 @@
     "pommy",
     "boer",
     "kaffir",
-    "zulu"
+    "zulu",
+    "towel head",
+    "sand nigger",
+    "slant eye",
+    "zipper head",
+    "hillbilly",
+    "trailer trash",
+    "sheep shagger",
+    "nig nog"
   ],
   
   "homophobic_transphobic_slurs": [
@@ -107,7 +115,8 @@
     "aspie",
     "sped",
     "window licker",
-    "mouth breather"
+    "mouth breather",
+    "inbred"
   ],
   
   "sexist_gendered_slurs": [
