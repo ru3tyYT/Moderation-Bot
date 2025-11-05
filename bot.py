@@ -44,7 +44,8 @@ config = {
     "log_channel_id": None,
     "gemini_api_keys": [],
     "current_key_index": 0,
-    "severity_threshold": 7
+    "severity_threshold": 7,
+    "mod_mode": "calm"
 }
 
 slur_patterns = []
