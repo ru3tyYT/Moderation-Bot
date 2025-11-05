@@ -495,6 +495,7 @@ testing nigger for the bot
 | `/setlog #channel` | Set log channel for reports | Admin |
 | `/toggle enabled:True/False` | Enable or disable bot | Admin |
 | `/setseverity threshold:7` | Set minimum severity for punishment (1-10) | Admin |
+| `/modmode strict/calm/status` | Set moderation mode or check status | Admin |
 | `/status` | View bot configuration and stats | Anyone |
 
 ### API Key Management
