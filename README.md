@@ -1545,7 +1545,7 @@ This bot complies with Discord's Terms of Service and Bot Guidelines:
 
 ## 🎖️ Credits
 
-**Developed by:** [Your Name/Team]
+**Developed by:** Duck
 
 **Built with:**
 - [Discord.py](https://github.com/Rapptz/discord.py) - Discord API wrapper
@@ -1567,7 +1567,7 @@ This bot complies with Discord's Terms of Service and Bot Guidelines:
 
 MIT License
 
-Copyright (c) 2024 [Your Name]
+Copyright (c) 2025 Duck
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1627,4 +1627,4 @@ If this bot helped your server, consider:
 
 **Made with ❤️ for safer Discord communities**
 
-*Last updated: 2024*
+*Last updated: 2025*
