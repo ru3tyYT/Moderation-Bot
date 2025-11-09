@@ -1,9 +1,35 @@
+# requirements.txt - ALL FEATURES ENABLED for dedicated hosting
+# For BotHosting.net, EAS, or any VPS with full access
+
+# Core Discord
 discord.py==2.3.2
+
+# AI & APIs
 google-generativeai==0.3.2
 aiohttp==3.9.1
+
+# Data visualization
 matplotlib==3.8.2
+
+# Utilities
 pytz==2023.3
 python-dotenv==1.0.0
+requests==2.31.0
+
+# Image processing & OCR - FULL FEATURES
 Pillow==10.1.0
 pytesseract==0.3.10
+
+# Translation - FREE
 deep-translator==1.11.4
+
+# Emoji detection - FULL UNICODE SUPPORT
+emoji==2.8.0
+
+# Web server for keepalive
+Flask==3.0.0
+
+# Note: You must also install Tesseract OCR system package:
+# Ubuntu/Debian: sudo apt-get install tesseract-ocr
+# Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+# Mac: brew install tesseract
