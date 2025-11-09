@@ -1,6 +1,6 @@
 # 🛡️ Discord AI Moderation Bot
 
-> **Advanced Discord moderation bot with AI-powered context detection, free OCR/translation, intelligent severity rating, and 3 moderation modes.**
+> **Advanced Discord moderation bot with AI-powered context detection, free OCR/translation, and intelligent severity rating system.**
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Discord.py](https://img.shields.io/badge/discord.py-2.3.2-blue.svg)](https://github.com/Rapptz/discord.py)
@@ -12,74 +12,70 @@
 ## 🌟 Features
 
 ### 🤖 AI-Powered Moderation
-- **Gemini 2.0 Flash** - Latest Google AI model for context analysis
 - **Context-Aware Detection** - Understands playful vs hostile language
-- **Severity Rating System** - Rates messages 1-10 with detailed reasoning
-- **Three Moderation Modes:**
-  - 🟢 **Relax** - NO AI, pattern-only, instant delete, $0 cost
-  - 🟡 **Calm** - AI for detected slurs only (recommended)
-  - 🔴 **Strict** - AI checks ALL messages
+- **Severity Rating System** - Rates messages 1-10, configurable threshold
+- **Smart AI Usage** - Only calls Gemini when slurs detected (saves API quota)
 - **Multi-Language Support** - Auto-translates and checks all languages
 
 ### 🔍 Advanced Detection
 - **Pattern Matching** - Catches 200+ variations per word (leetspeak, spacing, unicode)
-- **Image OCR Scanning** - Reads text from images using Tesseract (FREE, optional)
-- **Emoji Detection** - Checks emoji names (`:skull:`, `:middle_finger:`, etc.)
-- **Slur Database** - 800-1000+ slurs organized by category
+- **Image OCR Scanning** - Reads text from images using Tesseract (FREE)
+- **Slur Database** - 150+ slurs organized by category
 - **Whitelist System** - Trusted users/roles bypass filters
-- **Case Management** - Detailed violation logs per user
 
 ### 📊 Comprehensive Logging
-- **User History Tracking** - Complete violation history per user
-- **Case System** - Detailed case logs with AI analysis and statistics
+- **User History Tracking** - View complete violation history per user
 - **Daily Reports** - Beautiful graphs sent at midnight EST
-- **Detailed Violation Logs** - Includes severity, AI reasoning, and proof
+- **Detailed Violation Logs** - Includes severity, AI analysis, and proof
 - **Real-Time Statistics** - Track messages scanned, flagged, and more
 
-### 💰 Zero Cost Operation
-- **FREE OCR** - Tesseract (local, optional)
+### 💰 Zero Cost
+- **FREE OCR** - Tesseract (local, no API)
 - **FREE Translation** - deep-translator (no API key needed)
-- **FREE AI** - Gemini 2.0 (60 requests/min per key)
-- **Relax Mode** - 100% free, no API needed
+- **FREE AI** - Gemini (60 requests/min per key)
 - **Total Cost: $0/month**
 
 ---
 
-## 🆕 What's New in v3.0
+## 📸 Screenshots
 
-### ✅ Major Updates
-- **Gemini 2.0 Flash Experimental** - Latest AI model (no more 404 errors!)
-- **Relax Mode** - Pattern-only detection, NO AI, zero cost
-- **Emoji Detection** - Now checks emoji names like `:nigger:`, `:kys:`, etc.
-- **Better Error Handling** - Graceful OCR failures (optional feature)
-- **Fixed Font Warnings** - Clean console output
-- **Improved Foreign Language** - Better translation and detection
+### Violation Report
+```
+🚨 Violation Detected - Severity 8/10
 
-### 🆚 Mode Comparison
+User: @BadUser (123456789)
+Channel: #general
+Severity: 8/10
 
-| Feature | Relax Mode | Calm Mode | Strict Mode |
-|---------|-----------|-----------|-------------|
-| AI Usage | ❌ None | ✅ Detected only | ✅ ALL messages |
-| Speed | ⚡ Instant | 🕐 ~1-2 sec | 🕐 ~2-3 sec |
-| API Cost | 💰 $0 | 💰 Low | 💰 High |
-| Accuracy | ⚠️ Basic | ✅ High | ✅ Highest |
-| False Positives | ⚠️ More | ✅ Few | ✅ Fewest |
-| Context Analysis | ❌ No | ✅ Yes | ✅ Yes |
-| Best For | Zero budget | Most servers | High security |
+Original Message: "you're a retard"
+Translated: "you're a retard"
+
+AI Analysis:
+Context: hostile
+Reason: Clear use of ableist slur with negative intent
+
+⚠️ Action Taken
+Message deleted (severity 8 ≥ threshold 7)
+```
+
+### Daily Report
+Automatically generated graph showing:
+- Messages scanned vs flagged
+- Hourly activity breakdown
+- Clean vs flagged pie chart
+- Summary statistics
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10+ (3.9 works with warnings)
+- Python 3.8 or higher
 - Discord bot with MESSAGE CONTENT INTENT enabled
-- 2-3 Gemini API keys (free from Google AI Studio) - **Optional for Relax Mode**
-- Tesseract OCR (optional - only needed for image scanning)
+- 2-3 Gemini API keys (free from Google AI Studio)
+- Tesseract OCR installed
 
 ### Installation
-
-**⚠️ IMPORTANT: If you posted your bot token publicly, you MUST regenerate it first!**
 
 1. **Clone or download this repository**
 ```bash
@@ -87,52 +83,53 @@ git clone https://github.com/yourusername/discord-mod-bot
 cd discord-mod-bot
 ```
 
-2. **Install Python dependencies**
+2. **Install Tesseract OCR**
+
+**Windows:**
+- Download: https://github.com/UB-Mannheim/tesseract/wiki
+- Install `tesseract-ocr-w64-setup-5.3.3.exe`
+- Add to PATH: `C:\Program Files\Tesseract-OCR`
+
+**Mac:**
+```bash
+brew install tesseract
+```
+
+**Linux:**
+```bash
+sudo apt update
+sudo apt install tesseract-ocr
+```
+
+**Verify installation:**
+```bash
+tesseract --version
+```
+
+3. **Install Python dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Configure bot token** (Choose ONE method)
+4. **Configure environment variables**
 
-**Method 1: .env file (Recommended)**
+Create a `.env` file:
 ```bash
-# Create .env file
-DISCORD_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
-
-# Optional: Add API keys (not needed for Relax mode)
-GEMINI_API_KEY_1=AIzaSy...
-GEMINI_API_KEY_2=AIzaSy...
+DISCORD_BOT_TOKEN=your_discord_bot_token_here
 ```
 
-**Method 2: token.txt (Good for hosting)**
-```bash
-echo 'YOUR_BOT_TOKEN_HERE' > token.txt
-```
-
-**Method 3: Environment variable**
-```bash
-export DISCORD_BOT_TOKEN='YOUR_BOT_TOKEN_HERE'
-```
-
-4. **Run the bot**
+5. **Run the bot**
 ```bash
 python bot.py
 ```
 
-5. **Configure in Discord**
+6. **Configure in Discord**
 ```bash
-# For FREE mode (no API keys needed):
-/setup #general
-/setlog #mod-logs
-/modmode mode:relax
-/whitelist_role @Moderator
-/toggle enabled:True
-
-# For AI mode (requires API keys):
 /addkey api_key:YOUR_GEMINI_KEY
-/addkey api_key:YOUR_GEMINI_KEY_2
-/modmode mode:calm
+/setlog #mod-logs
+/setup #general
 /setseverity threshold:7
+/whitelist_role @Moderator
 /toggle enabled:True
 ```
 
@@ -142,7 +139,7 @@ python bot.py
 
 ```
 discord-mod-bot/
-├── bot.py                      # Main bot code (UPDATED!)
+├── bot.py                      # Main bot code
 ├── pattern_detector.py         # Pattern matching engine
 ├── slur_patterns.json          # Slur database (150+ words)
 ├── requirements.txt            # Python dependencies
@@ -154,6 +151,337 @@ discord-mod-bot/
 ├── daily_stats.json            # Today's stats (auto-generated)
 └── README.md                   # This file
 ```
+
+### File Descriptions
+
+| File | Purpose | Required | Auto-Generated |
+|------|---------|----------|----------------|
+| `bot.py` | Main bot code | ✅ Yes | ❌ No |
+| `pattern_detector.py` | Pattern matching | ✅ Yes | ❌ No |
+| `slur_patterns.json` | Slur database | ✅ Yes | ❌ No |
+| `requirements.txt` | Dependencies | ✅ Yes | ❌ No |
+| `.env` | Your tokens | ✅ Yes | ❌ No |
+| `.gitignore` | Git protection | ⚠️ Recommended | ❌ No |
+| `config.json` | Bot settings | ✅ Yes | ✅ Yes |
+| `whitelist.json` | Whitelist data | ✅ Yes | ✅ Yes |
+| `violation_logs.json` | Violation history | ⚠️ Optional | ✅ Yes |
+| `daily_stats.json` | Statistics | ⚠️ Optional | ✅ Yes |
+
+---
+
+## 🔧 Detailed Setup Guide
+
+### Step 1: Discord Bot Setup (5 minutes)
+
+1. **Create Discord Application**
+   - Go to https://discord.com/developers/applications
+   - Click "New Application"
+   - Name it (e.g., "Moderation Bot")
+   - Click "Create"
+
+2. **Create Bot User**
+   - Left sidebar → "Bot"
+   - Click "Add Bot" → "Yes, do it!"
+
+3. **Enable Privileged Intents** ⚠️ CRITICAL
+   - Scroll to "Privileged Gateway Intents"
+   - ✅ Enable **PRESENCE INTENT**
+   - ✅ Enable **SERVER MEMBERS INTENT**
+   - ✅ Enable **MESSAGE CONTENT INTENT** (REQUIRED!)
+   - Click "Save Changes"
+
+4. **Get Bot Token**
+   - Under "TOKEN" section
+   - Click "Reset Token" (if first time) or "Copy"
+   - **Save this token** - you'll need it for `.env`
+
+5. **Generate Invite Link**
+   - Left sidebar → "OAuth2" → "URL Generator"
+   - **Scopes:** Check `bot` and `applications.commands`
+   - **Bot Permissions:** Check:
+     - Read Messages/View Channels
+     - Send Messages
+     - Manage Messages (REQUIRED!)
+     - Embed Links
+     - Read Message History
+     - Use Slash Commands
+   - Copy the generated URL
+
+6. **Invite Bot to Server**
+   - Paste URL in browser
+   - Select your server
+   - Click "Authorize"
+   - Complete CAPTCHA
+
+---
+
+### Step 2: Gemini API Keys (3 minutes)
+
+**Why multiple keys?**
+Each key gets 60 requests/min. More keys = more capacity.
+
+**Getting keys:**
+1. Go to https://aistudio.google.com/app/apikey
+2. Click "Create API Key"
+3. Select a Google Cloud project (or create new)
+4. Copy the API key
+5. **Repeat with different Google accounts** for 2-3 keys total
+
+**No credit card needed!** Gemini API is free tier.
+
+---
+
+### Step 3: Install Tesseract OCR (5 minutes)
+
+**What is Tesseract?**
+Free, open-source OCR that runs locally. No API calls, no cost.
+
+**Windows Installation:**
+1. Download from: https://github.com/UB-Mannheim/tesseract/wiki
+2. Download `tesseract-ocr-w64-setup-5.3.3.exe`
+3. Run installer (default settings OK)
+4. Note install path: `C:\Program Files\Tesseract-OCR`
+5. Add to PATH:
+   - Search "Environment Variables"
+   - Edit "Path" variable
+   - Add `C:\Program Files\Tesseract-OCR`
+   - Click OK
+6. **Restart terminal/cmd**
+
+**Mac Installation:**
+```bash
+brew install tesseract
+```
+
+**Linux Installation:**
+```bash
+sudo apt update
+sudo apt install tesseract-ocr
+```
+
+**Verify:**
+```bash
+tesseract --version
+```
+Should show: `tesseract 5.x.x`
+
+**If Tesseract not found on Windows:**
+Add this to top of `bot.py` after imports:
+```python
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+```
+
+---
+
+### Step 4: Install Python Dependencies (2 minutes)
+
+**Navigate to bot folder:**
+```bash
+cd /path/to/discord-mod-bot
+```
+
+**Install requirements:**
+```bash
+pip install -r requirements.txt
+```
+
+**What gets installed:**
+- `discord.py` - Discord API library
+- `google-generativeai` - Gemini AI
+- `Pillow` - Image processing
+- `pytesseract` - Tesseract wrapper
+- `deep-translator` - FREE translation (no API key!)
+- `matplotlib` - Graphs for reports
+- `pytz` - Timezone handling
+- `aiohttp` - Async HTTP requests
+- `python-dotenv` - Environment variables
+
+**Troubleshooting:**
+- If `pip` not found, try `pip3` or `python -m pip`
+- If permission error, add `--user` flag
+
+---
+
+### Step 5: Configure Environment (2 minutes)
+
+**Create `.env` file** in bot folder:
+```bash
+DISCORD_BOT_TOKEN=paste_your_token_here
+```
+
+**Example:**
+```bash
+DISCORD_BOT_TOKEN=MTIzNDU2Nzg5MDEyMzQ1Njc4.GaBcDe.FgHiJkLmNoPqRsTuVwXyZ123456789
+```
+
+**Important:**
+- File must be named `.env` (with the dot)
+- No spaces around `=`
+- No quotes needed
+- Keep this file secret!
+
+---
+
+### Step 6: Run the Bot (1 minute)
+
+**Start bot:**
+```bash
+python bot.py
+```
+
+**Expected output:**
+```
+BotName#1234 has connected to Discord!
+Loaded 150 patterns
+Whitelisted: 0 users, 0 roles
+Severity threshold: 7/10
+API keys: 0
+```
+
+**Bot should show 🟢 ONLINE in Discord!**
+
+**If errors:**
+- Check `.env` file exists and has correct token
+- Check Tesseract is installed: `tesseract --version`
+- Check all dependencies installed: `pip list`
+
+---
+
+### Step 7: Configure in Discord (3 minutes)
+
+**In any channel where bot can see messages:**
+
+```bash
+# 1. Add Gemini API keys (2-3 recommended)
+/addkey api_key:AIzaSyABC123...
+/addkey api_key:AIzaSyDEF456...
+/addkey api_key:AIzaSyGHI789...
+
+# 2. Set log channel (create #mod-logs first)
+/setlog #mod-logs
+
+# 3. Set monitored channel
+/setup #general
+
+# 4. Set severity threshold (default 7)
+# 7 = balanced, 5 = strict, 9 = lenient
+/setseverity threshold:7
+
+# 5. Whitelist your moderators (IMPORTANT!)
+/whitelist_role @Moderator
+/whitelist_role @Admin
+
+# 6. Enable the bot
+/toggle enabled:True
+
+# 7. Check everything is configured
+/status
+```
+
+**Expected `/status` output:**
+```
+🛡️ Bot Status
+
+Enabled: ✅ Yes
+Monitored: #general
+Log Channel: #mod-logs
+Patterns: 150
+API Keys: 3
+Severity Threshold: 7/10
+Today's Scans: 0
+Today's Flags: 0
+Total Violations: 0
+Whitelisted: 0 users, 2 roles
+```
+
+---
+
+## 🧪 Testing Your Bot
+
+### Test 1: Playful Message (Should NOT Delete)
+
+**Post in monitored channel:**
+```
+hey you monkey stop stealing my food lol
+```
+
+**Expected result:**
+- ✅ Detected: "monkey"
+- 🤖 AI rates: 2-3/10 (playful, no malice)
+- 📊 Logged to #mod-logs
+- ✅ Message NOT deleted (below threshold 7)
+- ✅ No DM sent
+- ℹ️ Shows context: "playful"
+
+### Test 2: Clear Slur (SHOULD Delete)
+
+**Post in monitored channel:**
+```
+testing with nigger
+```
+
+**Expected result:**
+- ✅ Detected: "nigger"
+- 🤖 AI rates: 10/10 (severe slur)
+- ❌ Message DELETED immediately
+- 📩 You receive DM warning
+- 📊 Logged to #mod-logs with severity 10
+- ℹ️ Shows context: "hostile"
+
+### Test 3: Context-Dependent
+
+**Post in monitored channel:**
+```
+stop being such a retard
+```
+
+**Expected result:**
+- ✅ Detected: "retard"
+- 🤖 AI rates: 7-8/10 (hostile use of ableist slur)
+- ❌ Deleted (meets threshold 7)
+- 📩 DM sent
+- 📊 Logged with AI explanation
+
+### Test 4: Whitelisted User
+
+**Moderator with whitelisted role posts:**
+```
+testing nigger for the bot
+```
+
+**Expected result:**
+- ✅ User is whitelisted
+- ✅ Message NOT deleted
+- ✅ No AI check performed
+- ✅ Not logged
+- 💡 Allows mods to test and discuss violations
+
+### Test 5: Image OCR
+
+**Upload image with text:**
+> Image containing: "you're a faggot"
+
+**Expected result:**
+- 🖼️ OCR extracts: "you're a faggot"
+- ✅ Translates to English
+- ✅ Detects: "faggot"
+- 🤖 AI rates severity
+- ❌ Deleted if ≥ threshold
+- 📊 Logged with OCR text included
+
+### Test 6: Foreign Language
+
+**Post in monitored channel:**
+```
+你是个傻瓜 (Chinese for "you're an idiot")
+```
+
+**Expected result:**
+- 🌍 Translates to English: "you're an idiot"
+- ✅ Checks translated text for slurs
+- 🤖 AI rates severity
+- 📊 Action taken based on rating
 
 ---
 
@@ -167,14 +495,14 @@ discord-mod-bot/
 | `/setlog #channel` | Set log channel for reports | Admin |
 | `/toggle enabled:True/False` | Enable or disable bot | Admin |
 | `/setseverity threshold:7` | Set minimum severity for punishment (1-10) | Admin |
-| `/modmode relax/calm/strict` | Set moderation mode | Admin |
+| `/modmode strict/calm/status` | Set moderation mode or check status | Admin |
 | `/status` | View bot configuration and stats | Anyone |
 
 ### API Key Management
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/addkey api_key:xxx` | Add Gemini API key (not needed for Relax) | Admin |
+| `/addkey api_key:xxx` | Add Gemini API key to rotation | Admin |
 | `/listkeys` | View all configured API keys | Admin |
 | `/removekey key_number:1` | Remove API key from rotation | Admin |
 
@@ -193,168 +521,7 @@ discord-mod-bot/
 | Command | Description | Permission |
 |---------|-------------|------------|
 | `/user @username` | Check violation history for user | Anyone |
-| `/case @username` | View detailed case logs with full analysis | Anyone |
 | `/forcereport` | Generate daily report immediately | Admin |
-
----
-
-## 🎯 New Features Explained
-
-### 1. Relax Mode (Zero Cost)
-
-**What is it?**
-- NO AI checking at all
-- Pure pattern matching
-- Instant deletion on match
-- Zero API costs
-- Perfect for budget servers
-
-**How it works:**
-```
-Message → Pattern match? → YES → DELETE (no AI)
-                        → NO  → Allow
-```
-
-**Example:**
-```bash
-User posts: "you're a nigger"
-    ↓
-Pattern detected: "nigger"
-    ↓
-INSTANT DELETE (no AI context check)
-    ↓
-Logged with reason: "Pattern match: nigger (Relax mode)"
-```
-
-**Enable Relax Mode:**
-```bash
-/modmode mode:relax
-```
-
-**Pros:**
-- ✅ Completely free ($0/month)
-- ✅ No API keys needed
-- ✅ Instant deletion
-- ✅ Simple setup
-
-**Cons:**
-- ⚠️ No context understanding
-- ⚠️ More false positives
-- ⚠️ "you monkey lol" gets deleted
-- ⚠️ Can't distinguish playful vs hostile
-
----
-
-### 2. Calm Mode (Recommended)
-
-**What is it?**
-- Pattern detection first
-- AI only for flagged messages
-- Best accuracy/cost ratio
-- Understands context
-
-**How it works:**
-```
-Message → Pattern match? → NO → Allow
-                        → YES → AI check → Rate 1-10
-                                        → ≥ Threshold? → DELETE
-                                        → < Threshold? → Log only
-```
-
-**Example:**
-```bash
-User posts: "you monkey lol"
-    ↓
-Pattern detected: "monkey"
-    ↓
-AI analyzes: "Playful banter, no malice"
-    ↓
-Severity: 2/10 (below threshold 7)
-    ↓
-Message ALLOWED (logged only)
-```
-
-**Enable Calm Mode:**
-```bash
-/modmode mode:calm
-```
-
-**Pros:**
-- ✅ Context-aware
-- ✅ Low API usage
-- ✅ Few false positives
-- ✅ Best for most servers
-
-**Cons:**
-- ⚠️ Requires API keys
-- ⚠️ Slight delay (~1-2 sec)
-
----
-
-### 3. Strict Mode (Maximum Protection)
-
-**What is it?**
-- Checks ALL messages with AI
-- No pattern detection needed
-- Highest accuracy
-- Catches everything
-
-**How it works:**
-```
-Message → AI check ALL → Rate 1-10
-                      → ≥ Threshold? → DELETE
-                      → < Threshold? → Allow
-```
-
-**Enable Strict Mode:**
-```bash
-/modmode mode:strict
-```
-
-**Pros:**
-- ✅ Maximum protection
-- ✅ Catches subtle violations
-- ✅ Best accuracy
-
-**Cons:**
-- ⚠️ High API usage
-- ⚠️ Needs many API keys
-- ⚠️ Slower processing
-
----
-
-### 4. Emoji Detection
-
-**What is it?**
-The bot now checks emoji names for slurs!
-
-**How it works:**
-```
-User posts: "kys :skull:"
-    ↓
-Bot extracts emoji name: "skull"
-    ↓
-Bot checks: "kys" + "skull" for slurs
-    ↓
-Takes action if needed
-```
-
-**Catches:**
-- `:skull:` (detected as "skull")
-- `:middle_finger:` (detected as "middle finger")
-- `:poop:` (detected as "poop")
-- Custom emojis with offensive names
-
-**Note:** Add emoji names to `slur_patterns.json` if needed:
-```json
-{
-  "offensive_emojis": [
-    "skull",
-    "kys",
-    "middle finger"
-  ]
-}
-```
 
 ---
 
@@ -362,202 +529,138 @@ Takes action if needed
 
 ### How It Works
 
-1. **Pattern Detection** → Bot checks if message contains slurs
-2. **Mode Check:**
-   - **Relax Mode:** Instant delete (skip AI)
-   - **Calm/Strict Mode:** AI analysis
-3. **AI Analysis** → Gemini rates severity 1-10 based on context
-4. **Threshold Check** → Compares severity to configured threshold
-5. **Action Taken** → If severity ≥ threshold: delete + DM + log
+1. **Pattern Detection** → Bot checks if message contains slurs from database
+2. **AI Analysis** → If slurs found, Gemini rates severity 1-10 based on context
+3. **Threshold Check** → Compares severity to configured threshold (default 7)
+4. **Action Taken** → If severity ≥ threshold: delete + DM + log
 
 ### Severity Scale
 
 | Severity | Description | Context | Examples | Default Action |
 |----------|-------------|---------|----------|----------------|
 | 1-3 | Playful, no malice | Friends joking | "you monkey lol" | Log only |
-| 4-6 | Potentially inappropriate | Depends on context | Mild insults | Log only |
+| 4-6 | Potentially inappropriate | Depends on context | Mild insults, unclear intent | Log only |
 | 7-8 | Clear harassment | Hostile use of slurs | "you retard", "stupid faggot" | Delete + DM |
 | 9-10 | Severe hate speech | Direct attacks, threats | Racial slurs, death threats | Delete + DM |
 
 ### Configuring Threshold
 
-**Strict (threshold 5):**
+**Strict Mode (threshold 5):**
 ```bash
 /setseverity threshold:5
 ```
 - Flags more messages
 - Catches borderline cases
 - More false positives
+- Good for zero-tolerance servers
 
-**Balanced (threshold 7) - DEFAULT:**
+**Balanced Mode (threshold 7) - DEFAULT:**
 ```bash
 /setseverity threshold:7
 ```
 - Good balance
 - Catches clear violations
 - Allows friendly banter
-- **Recommended**
+- Recommended for most servers
 
-**Lenient (threshold 9):**
+**Lenient Mode (threshold 9):**
 ```bash
 /setseverity threshold:9
 ```
 - Only severe violations
 - Fewer false positives
-- More rough language allowed
+- Allows more rough language
+- Good for mature/gaming communities
 
----
+### AI Reasoning Examples
 
-## 🔧 Detailed Setup Guide
-
-### Step 1: Discord Bot Setup
-
-1. **Create Discord Application**
-   - Go to https://discord.com/developers/applications
-   - Click "New Application" → Name it → Create
-
-2. **Create Bot User**
-   - Left sidebar → "Bot" → "Add Bot" → "Yes, do it!"
-
-3. **Enable Privileged Intents** ⚠️ CRITICAL
-   - ✅ **PRESENCE INTENT**
-   - ✅ **SERVER MEMBERS INTENT**
-   - ✅ **MESSAGE CONTENT INTENT** (REQUIRED!)
-   - Click "Save Changes"
-
-4. **Get Bot Token**
-   - Under "TOKEN" → "Reset Token" → Copy
-   - **Save this token** for `.env` file
-
-5. **Generate Invite Link**
-   - OAuth2 → URL Generator
-   - **Scopes:** `bot` + `applications.commands`
-   - **Permissions:** Manage Messages, Send Messages, Embed Links, Read Message History
-   - Copy URL and invite to server
-
-### Step 2: Gemini API Keys (Optional for Relax Mode)
-
-**Why multiple keys?**
-Each key = 60 requests/min. More keys = more capacity.
-
-**Getting keys:**
-1. Go to https://aistudio.google.com/app/apikey
-2. Click "Create API Key"
-3. Copy the key
-4. Repeat with different Google accounts for 2-3 keys
-
-**No credit card needed!** Gemini is free tier.
-
-**Skip this step if using Relax Mode!**
-
-### Step 3: Install Tesseract OCR (Optional)
-
-**Note:** OCR is completely optional. If Tesseract isn't installed, the bot will skip image scanning gracefully.
-
-**Windows:**
-1. Download: https://github.com/UB-Mannheim/tesseract/wiki
-2. Install to `C:\Program Files\Tesseract-OCR`
-3. Add to PATH or configure in bot.py
-
-**Mac:**
-```bash
-brew install tesseract
+**Example 1: Playful Context**
+```
+Message: "dude you're such a monkey haha"
+Detected: "monkey"
+AI Rating: 2/10
+Reason: "Playful banter between users, no malicious intent, 
+        using 'monkey' as friendly teasing with 'haha' indicating humor"
+Context: playful
+Action: Log only (2 < 7)
 ```
 
-**Linux:**
-```bash
-sudo apt install tesseract-ocr
+**Example 2: Hostile Context**
+```
+Message: "you're a fucking retard"
+Detected: "retard"
+AI Rating: 8/10
+Reason: "Clear use of ableist slur with negative intent, 
+        combined with profanity directed at individual"
+Context: hostile
+Action: Delete + DM (8 ≥ 7)
 ```
 
-**Skip OCR?** The bot works fine without it!
-
-### Step 4: Run Bot
-
-```bash
-python bot.py
+**Example 3: Severe Slur**
 ```
-
-**Expected output:**
-```
-✅ Token loaded
-🚀 Starting bot with Gemini 2.0 Flash...
-✅ Synced 17 slash command(s)
-✅ Bot has connected to Discord!
-✅ Loaded 150 patterns
-✅ Moderation mode: CALM
-✅ API keys: 3 (including 3 from environment)
+Message: "nigger"
+Detected: "nigger"
+AI Rating: 10/10
+Reason: "Direct use of severe racial slur with no 
+        educational or contextual justification"
+Context: hostile
+Action: Delete + DM (10 ≥ 7)
 ```
 
 ---
 
-## 🧪 Testing Your Bot
+## 🎯 Pattern Matching System
 
-### Test 1: Relax Mode (Pattern-Only)
+### How It Works
 
-```bash
-# Set to relax mode
-/modmode mode:relax
-
-# Post in monitored channel:
-testing nigger
-
-# Expected:
-✅ INSTANT DELETE (no AI check)
-✅ DM received: "Pattern match: nigger (Relax mode)"
-✅ Logged with severity 10/10 (default)
+You add **one base word** to `slur_patterns.json`:
+```json
+"nigger"
 ```
 
-### Test 2: Calm Mode (Context-Aware)
+The bot **automatically catches 200+ variations**:
+- `nigger`, `nigga`
+- `n1gger`, `n1gga` (leetspeak)
+- `n i g g e r` (spaced)
+- `n.i.g.g.e.r` (dots)
+- `n_i_g_g_e_r` (underscores)
+- `n1gg3r` (mixed)
+- `ηigger` (unicode eta)
+- `nіgger` (Cyrillic і)
+- And 190+ more!
 
-```bash
-# Set to calm mode
-/modmode mode:calm
+### Character Substitutions Detected
 
-# Post playful message:
-hey you monkey stop stealing my food lol
+| Original | Substitutions Caught |
+|----------|---------------------|
+| `a` | `4`, `@`, `α`, `а` |
+| `e` | `3`, `ε`, `е` |
+| `i` | `1`, `!`, `l`, `\|`, `ı`, `і` |
+| `o` | `0`, `ο`, `о` |
+| `s` | `5`, `$`, `ş`, `ѕ` |
+| `g` | `9`, `q` |
+| `t` | `7`, `+` |
+| `b` | `8` |
+| And more... | See `pattern_detector.py` |
 
-# Expected:
-✅ Pattern detected: "monkey"
-🤖 AI analyzes: "Playful banter, severity 2/10"
-✅ Message NOT deleted (below threshold 7)
-✅ Logged for records
+### Adding Words to Database
+
+**Edit `slur_patterns.json`:**
+```json
+{
+  "racial_ethnic_slurs": [
+    "your_word_here",
+    "another_word"
+  ]
+}
 ```
 
-```bash
-# Post hostile message:
-you filthy monkey
-
-# Expected:
-✅ Pattern detected: "monkey"
-🤖 AI analyzes: "Hostile intent, severity 8/10"
-❌ Message DELETED (above threshold 7)
-📩 DM sent with explanation
-✅ Logged with AI reasoning
-```
-
-### Test 3: Emoji Detection
-
-```bash
-# Post message with emoji:
-kys :skull:
-
-# Expected:
-✅ Text checked: "kys"
-✅ Emoji name checked: "skull"
-✅ Action taken based on matches
-```
-
-### Test 4: Foreign Language
-
-```bash
-# Post in Spanish:
-eres un idiota
-
-# Expected:
-✅ Translates to: "you're an idiot"
-✅ Checks translated text for slurs
-✅ Takes action if needed
-```
+**Rules:**
+- ✅ Lowercase only
+- ✅ NO asterisks (use `nigger` not `n*gger`)
+- ✅ Base word only (variations caught automatically)
+- ✅ One word per line
+- ❌ No patterns needed (bot handles it)
 
 ---
 
@@ -567,41 +670,210 @@ eres un idiota
 
 | Service | Provider | Cost | Usage |
 |---------|----------|------|-------|
-| OCR | Tesseract (optional) | $0 | Unlimited |
-| Translation | deep-translator | $0 | Unlimited |
-| AI Analysis | Gemini 2.0 | $0 | 60 req/min per key |
-| **Relax Mode** | **Pattern-only** | **$0** | **Unlimited** |
+| OCR | Tesseract (local) | $0 | Unlimited |
+| Translation | deep-translator | $0 | Unlimited (reasonable use) |
+| AI Analysis | Gemini API | $0 | 60 requests/min per key |
+| Hosting | Your PC/VPS | $0-5 | Depends on hosting choice |
 
-### Mode Costs
+### Comparison to Paid Alternatives
 
-| Mode | API Usage | Cost/Month | Best For |
-|------|-----------|------------|----------|
-| Relax | 0 calls | **$0** | Budget servers |
-| Calm | ~50-200/day | **$0** | Most servers |
-| Strict | ~1000+/day | **$0** | High security |
+| Feature | This Bot | Paid Alternative |
+|---------|----------|------------------|
+| OCR | FREE (Tesseract) | $1.50 per 1,000 images (Google Vision) |
+| Translation | FREE (deep-translator) | $20/month + $20 per 1M chars (Google Cloud) |
+| AI | FREE (Gemini) | $0.50 per 1M tokens (GPT-4) |
+| **Total** | **$0/month** | **$20-50/month** |
 
-**All modes are FREE!** Gemini has generous free tier.
+### API Quota Management
+
+**Gemini Free Tier:**
+- 60 requests per minute per key
+- No daily limit
+- No credit card required
+
+**Strategy for high-traffic servers:**
+- Add 3-5 API keys (different Google accounts)
+- Bot automatically rotates when rate limited
+- Each key = 60 req/min
+- 5 keys = 300 req/min capacity
+- More than enough for even large servers
+
+**Typical usage:**
+- Small server (100 members): 5-10 API calls/day
+- Medium server (1,000 members): 20-50 API calls/day
+- Large server (10,000 members): 100-200 API calls/day
+
+**Why so few API calls?**
+Bot only calls Gemini when slurs are detected! 99% of messages skip AI entirely.
 
 ---
 
-## 📊 Performance & Scalability
+## 📊 Features in Detail
 
-### Server Size Guidelines
+### 1. Context-Aware AI Detection
 
-**Small (100 members):**
-- Relax: Perfect, $0/month
-- Calm: 1 API key sufficient
-- Strict: 2 API keys recommended
+**Problem:** Traditional bots ban "you monkey" even when playful.
 
-**Medium (1,000 members):**
-- Relax: Perfect, $0/month
-- Calm: 2-3 API keys
-- Strict: 3-5 API keys
+**Solution:** AI understands context:
+```
+"you monkey lol" → Playful (severity 2) → Allowed
+"you filthy monkey" → Hostile (severity 8) → Deleted
+```
 
-**Large (10,000+ members):**
-- Relax: Perfect, $0/month
-- Calm: 3-5 API keys
-- Strict: 5-10 API keys
+**How it works:**
+- Analyzes full message and tone
+- Considers surrounding words
+- Detects intent (joking vs attacking)
+- Rates on 1-10 scale
+- Only punishes above threshold
+
+### 2. FREE Image OCR
+
+**What it does:**
+- Extracts text from uploaded images
+- Translates extracted text
+- Checks for slurs in images
+- Catches users trying to bypass text filters
+
+**Powered by Tesseract:**
+- Open-source OCR by Google
+- Runs locally (no API calls)
+- Supports 100+ languages
+- Very accurate for clear text
+
+**Example:**
+```
+User uploads meme with text: "nigger"
+→ OCR extracts: "nigger"
+→ Translates (if needed)
+→ Detects slur
+→ AI rates severity
+→ Takes action
+```
+
+**Limitations:**
+- Struggles with very small text
+- May miss heavily stylized fonts
+- Handwriting hit-or-miss
+- Best for screenshots and memes
+
+### 3. FREE Multi-Language Translation
+
+**Powered by deep-translator:**
+- Uses Google Translate (unofficial API)
+- No API key needed
+- No rate limits (reasonable use)
+- Supports 100+ languages
+- Completely free
+
+**How it works:**
+```
+Message in Spanish: "eres un idiota"
+→ Auto-detects language: Spanish
+→ Translates to English: "you're an idiot"
+→ Checks English text for slurs
+→ Takes action if needed
+```
+
+**Supported languages:**
+Spanish, French, German, Chinese, Japanese, Korean, Arabic, Russian, Portuguese, Italian, and 90+ more!
+
+### 4. Whitelist System
+
+**Why whitelist?**
+- Mods need to discuss violations
+- Testing the bot
+- Trusted long-time members
+- Prevents false positives
+
+**How to use:**
+```bash
+# Whitelist all mods (recommended)
+/whitelist_role @Moderator
+
+# Whitelist specific user
+/whitelist_user @TrustedMember
+
+# View who's whitelisted
+/whitelist_list
+
+# Remove from whitelist
+/unwhitelist_user @User
+```
+
+**What happens:**
+- Whitelisted users bypass ALL filters
+- No AI checks performed
+- Not logged
+- Can post anything without consequences
+
+### 5. User History Tracking
+
+**Track violations per user:**
+```bash
+/user @username
+```
+
+**Shows:**
+- Total violation count
+- Last 5 violations with:
+  - Timestamp
+  - Severity rating
+  - Original message
+  - Reason for flagging
+- Whitelist status
+
+**Use cases:**
+- Evidence for bans
+- Track repeat offenders
+- See if user improving
+- Appeal reviews
+
+### 6. Daily Reports
+
+**Automatic reports at midnight EST:**
+- Beautiful 4-panel graph
+- Overall statistics
+- Hourly activity breakdown
+- Clean vs flagged pie chart
+- Summary statistics
+
+**Manual generation:**
+```bash
+/forcereport
+```
+
+**What's included:**
+- Messages scanned today
+- Messages flagged today
+- Unique users caught
+- Flag rate percentage
+- Peak activity hour
+- API key status
+- Whitelist count
+- Severity threshold
+
+### 7. API Key Rotation
+
+**Multiple keys = more capacity:**
+```bash
+/addkey api_key:KEY1
+/addkey api_key:KEY2
+/addkey api_key:KEY3
+```
+
+**Automatic rotation:**
+- Bot uses key #1
+- Key #1 hits limit → switches to key #2
+- Key #2 hits limit → switches to key #3
+- Key #3 hits limit → switches back to key #1 (reset)
+- Seamless, no downtime!
+
+**Check status:**
+```bash
+/listkeys
+```
+Shows which key is currently active.
 
 ---
 
@@ -609,196 +881,750 @@ eres un idiota
 
 ### Bot Won't Start
 
-**Error: "Tesseract not found"**
-- This is just a warning! OCR is optional
-- Bot will work fine, just won't scan images
-- Install Tesseract if you want image scanning
-
 **Error: "DISCORD_BOT_TOKEN not set"**
-- Create `.env` file with your token
-- Or use `token.txt` method
 
-### No Slash Commands
+**Fix:**
+- Check `.env` file exists
+- File named `.env` (not `.env.txt`)
+- Token copied correctly
+- No spaces around `=`
 
-**Solution:**
+**Error: "No module named 'discord'"**
+
+**Fix:**
+```bash
+pip install -r requirements.txt
+```
+
+**Error: "Tesseract not found"**
+
+**Fix (Windows):**
+Add to top of `bot.py`:
+```python
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+```
+
+**Fix (Mac/Linux):**
+```bash
+which tesseract  # Find path
+# Add path to bot.py if needed
+```
+
+### Bot Shows Offline
+
+**Check:**
+- Token is correct
+- Bot invited to server
+- MESSAGE CONTENT INTENT enabled in Developer Portal
+
+**Re-invite bot:**
+1. Developer Portal → OAuth2 → URL Generator
+2. Scopes: `bot` + `applications.commands`
+3. Permissions: Include "Manage Messages"
+4. Generate URL and invite again
+
+### Commands Don't Show Up
+
+**Solutions:**
 - Wait 5-10 minutes for Discord sync
 - Restart bot
-- Re-invite bot with `applications.commands` scope checked
+- Kick bot and re-invite
+- Check `applications.commands` scope enabled
 
-### Foreign Language Not Working
+### Patterns Not Detecting
 
-**Solution:**
-- Check internet connection (needs web access)
+**Check pattern count:**
+```bash
+/status
+```
+Should show "Patterns: 150+"
+
+**If 0 patterns:**
+- Verify `slur_patterns.json` exists
+- Check JSON is valid: `python -m json.tool slur_patterns.json`
+- Ensure file in same folder as `bot.py`
+
+### Messages Not Being Deleted
+
+**Check:**
+- Bot enabled: `/toggle enabled:True`
+- Correct channel: `/setup #channel`
+- Bot has "Manage Messages" permission
+- Bot's role above user's role
+- User not whitelisted: `/whitelist_list`
+- Severity ≥ threshold: `/status`
+
+### Translation Not Working
+
+**Symptoms:**
+- Foreign language messages not detected
+- No translation shown in logs
+
+**Fix:**
+- Check internet connection (deep-translator needs web access)
 - Update: `pip install --upgrade deep-translator`
-- Check console for translation logs
+- Bot will use original text if translation fails
 
-### Gemini Errors
+### OCR Not Reading Images
 
-**Solution:**
-- Make sure using Gemini 2.0 Flash (`gemini-2.0-flash-exp`)
-- Check API keys are valid
-- Try `/listkeys` to verify keys loaded
+**Common issues:**
+- Image quality too low
+- Text too small (<12px font)
+- Heavily stylized fonts
+- Handwriting
+
+**This is normal** - OCR works best on clear, printed text.
+
+### API Keys Getting Rate Limited
+
+**Symptoms:**
+- "All API keys rate limited" in logs
+- Severity always 10
+
+**Fix:**
+```bash
+# Add more keys
+/addkey api_key:another_key
+```
+
+**Check rotation:**
+```bash
+/listkeys
+# Arrow shows active key
+```
+
+Bot automatically rotates when limits hit.
+
+### False Positives
+
+**Too strict:**
+```bash
+/setseverity threshold:8  # More lenient
+```
+
+**Still issues:**
+- Whitelist trusted users: `/whitelist_user @user`
+- Review slur patterns for overreach
+- Check AI reasoning in logs
+
+### False Negatives
+
+**Missing violations:**
+```bash
+/setseverity threshold:6  # More strict
+```
+
+**Add missing words:**
+Edit `slur_patterns.json` and add new patterns.
 
 ---
 
 ## 🔐 Security & Privacy
 
-### Data Storage (Local Only)
+### Data Storage
 
-**Stored locally:**
+**What's stored locally:**
 - `config.json` - Bot settings, API keys
-- `violation_logs.json` - Flagged messages only
-- `daily_stats.json` - Statistics
+- `violation_logs.json` - All flagged messages
+- `daily_stats.json` - Today's statistics
 - `whitelist.json` - Whitelisted users/roles
 
-**NOT stored:**
-- Clean messages
-- Private conversations
-- User personal info beyond Discord IDs
+**What's NOT stored:**
+- Clean messages (not logged anywhere)
+- Private user info beyond Discord IDs
+- Message history (only violations)
 
-### API Data Sent
+### API Data
 
-**Relax Mode:** Nothing sent (pattern-only)
-
-**Calm/Strict Mode:**
-- Only flagged messages sent to Gemini
+**Sent to Gemini:**
+- Only messages with detected slurs
 - For severity rating only
 - Not stored by Google (per Gemini terms)
 
----
+**Sent to Google Translate:**
+- Messages for translation
+- Anonymous (no user association)
+- Standard Google Translate terms apply
 
-## 📝 Changelog
+**NOT sent anywhere:**
+- Clean messages
+- Private conversations
+- User personal info
 
-### Version 3.0.0 (Current)
+### Protecting Your Bot
 
-**Major Changes:**
-- ✅ **Gemini 2.0 Flash Experimental** (latest model)
-- ✅ **Relax Mode** - NO AI, pattern-only, zero cost
-- ✅ **Emoji Detection** - Checks emoji names
-- ✅ **Optional OCR** - Graceful failure if Tesseract not installed
-- ✅ **Fixed font warnings** - Clean console output
-- ✅ **Better error handling** - More robust
+**NEVER share these:**
+- `.env` file (has your Discord token)
+- `config.json` (has Gemini API keys)
+- `violation_logs.json` (has user data)
 
-**Improvements:**
-- ⬆️ No more Gemini 404 errors
-- ⬆️ Better foreign language detection
-- ⬆️ Improved logging and debugging
-- ⬆️ Three moderation modes to choose from
+**Safe to share:**
+- `bot.py`, `pattern_detector.py`
+- `requirements.txt`
+- `slur_patterns.json` (if you want)
+- Documentation files
 
-### Version 2.0.0 (Previous)
+**Use .gitignore:**
+The included `.gitignore` protects sensitive files automatically when using Git.
 
-- FREE OCR using Tesseract
-- FREE translation
-- Severity rating system
-- Context-aware AI
+### Best Practices
 
----
-
-## ❓ FAQ
-
-**Q: Do I need API keys?**
-A: Not for Relax mode! Only Calm/Strict modes need API keys.
-
-**Q: Do I need Tesseract?**
-A: No! OCR is optional. Bot works fine without it.
-
-**Q: Which mode should I use?**
-A: **Calm mode** (recommended) - Good balance of accuracy and cost.
-
-**Q: Will I get charged?**
-A: No! All services are free tier.
-
-**Q: Can I run this on free hosting?**
-A: Yes! Especially Relax mode uses zero resources.
-
-**Q: How do I add custom slurs?**
-A: Edit `slur_patterns.json` and add words (lowercase, no asterisks).
-
-**Q: Can users bypass filters?**
-A: Very difficult. Catches 200+ variations + emoji names.
+1. **Rotate tokens regularly** - Change Discord token every few months
+2. **Limit bot permissions** - Only give what's needed
+3. **Monitor logs** - Review violation logs for anomalies
+4. **Backup data** - Copy logs before major updates
+5. **Keep updated** - Update dependencies regularly
 
 ---
 
-## 🎓 Quick Reference
+## 📈 Performance & Scalability
 
-### Essential Commands
+### Resource Usage
+
+**CPU:**
+- Idle: ~1-2%
+- Processing message: ~5-10%
+- OCR scan: ~20-30% (brief spike)
+
+**RAM:**
+- Base: ~100-150 MB
+- With data: ~200-300 MB
+- Max: ~500 MB (large servers)
+
+**Network:**
+- Minimal (only API calls)
+- ~1-5 KB per message checked
+- ~10-50 KB per API call
+
+### Server Size Guidelines
+
+**Small Server (100 members):**
+- Messages/day: ~1,000
+- API calls/day: ~5-10
+- 1 API key sufficient
+- Runs on any PC
+
+**Medium Server (1,000 members):**
+- Messages/day: ~10,000
+- API calls/day: ~20-50
+- 2-3 API keys recommended
+- Runs on basic VPS
+
+**Large Server (10,000+ members):**
+- Messages/day: ~100,000
+- API calls/day: ~100-200
+- 3-5 API keys recommended
+- Dedicated VPS recommended
+
+**Very Large Server (50,000+ members):**
+- Messages/day: ~500,000+
+- API calls/day: ~500-1000
+- 5-10 API keys needed
+- Consider multiple bot instances
+
+### Optimization Tips
+
+1. **Multiple API keys** - Add 3-5 for busy servers
+2. **Adjust threshold** - Higher threshold = fewer API calls
+3. **Selective monitoring** - Don't monitor all channels
+4. **Whitelist staff** - Reduces unnecessary checks
+5. **Review patterns** - Remove rarely-triggered patterns
+
+---
+
+## 🔄 Updating the Bot
+
+### Updating Dependencies
 
 ```bash
-# Setup (choose your mode)
-/modmode mode:relax   # Free, pattern-only
-/modmode mode:calm    # Recommended, context-aware
-/modmode mode:strict  # Maximum protection
-
-# Configure
-/setup #general
-/setlog #mod-logs
-/setseverity threshold:7
-/toggle enabled:True
-
-# Check status
-/status
-/modmode mode:status
-
-# Manage violations
-/user @username
-/case @username
+pip install --upgrade -r requirements.txt
 ```
 
-### Recommended Settings
+### Updating Slur Database
 
-**Most Servers:**
+Edit `slur_patterns.json`:
+```json
+{
+  "your_category": [
+    "new_word_here"
+  ]
+}
+```
+
+Restart bot:
 ```bash
-/modmode mode:calm
-/setseverity threshold:7
+python bot.py
 ```
 
-**Zero Budget:**
+### Backing Up Data
+
+**Before updates:**
 ```bash
-/modmode mode:relax
+cp config.json config.json.backup
+cp violation_logs.json violation_logs.json.backup
+cp slur_patterns.json slur_patterns.json.backup
 ```
 
-**High Security:**
+**Restore if needed:**
 ```bash
-/modmode mode:strict
-/setseverity threshold:5
+cp config.json.backup config.json
 ```
-
----
-
-## 📚 Additional Resources
-
-- [Discord.py Docs](https://discordpy.readthedocs.io/)
-- [Gemini API Docs](https://ai.google.dev/docs)
-- [Tesseract OCR](https://tesseract-ocr.github.io/) (optional)
-- [GitHub Issues](https://github.com/yourusername/discord-mod-bot/issues)
-
----
-
-## 📄 License
-
-MIT License - See LICENSE file for details
 
 ---
 
 ## 🤝 Contributing
 
-Contributions welcome! Please:
+### Reporting Issues
+
+Found a bug? Please include:
+- Error message (full text)
+- What you were doing
+- Expected vs actual behavior
+- Python version: `python --version`
+- OS: Windows/Mac/Linux
+
+### Suggesting Features
+
+Have an idea? Consider:
+- Does it fit the bot's purpose?
+- Is it feasible with free APIs?
+- Would it benefit most users?
+
+### Pull Requests
+
 1. Fork the repository
 2. Create feature branch
-3. Make changes and test
-4. Submit pull request
+3. Make your changes
+4. Test thoroughly
+5. Submit pull request with description
+
+---
+
+## 📝 Changelog
+
+### Version 2.0.0 (Current)
+
+**Major Changes:**
+- ✅ FREE OCR using Tesseract (replaced Google Vision)
+- ✅ FREE translation using deep-translator (replaced Google Cloud)
+- ✅ Severity rating system (1-10 scale)
+- ✅ Context-aware AI detection
+- ✅ Configurable threshold per server
+- ✅ Smart API usage (only when slurs detected)
+
+**Improvements:**
+- ⬆️ 99% reduction in API costs ($20/mo → $0/mo)
+- ⬆️ Better accuracy (context understanding)
+- ⬆️ Fewer false positives
+- ⬆️ Easier setup (no Google Cloud needed)
+
+**Removed:**
+- ❌ Google Cloud Translation API
+- ❌ Google Cloud Vision API
+- ❌ Credit card requirement
+
+### Version 1.0.0 (Legacy)
+
+- Basic slur detection
+- Google Cloud OCR
+- Google Cloud Translation
+- All messages sent to AI
+- Fixed punishment (no severity)
+
+---
+
+## ❓ FAQ
+
+### General Questions
+
+**Q: Is this really free?**
+A: Yes! All services used are free:
+- Tesseract OCR (open source)
+- deep-translator (free)
+- Gemini API (free tier)
+- Total: $0/month
+
+**Q: Do I need a credit card?**
+A: No! Unlike old system, no credit card needed.
+
+**Q: Will I get charged?**
+A: No. All services are free tier with no upgrade required.
+
+**Q: What's the catch?**
+A: No catch! Gemini has rate limits (60/min per key), but multiple keys solve this.
+
+---
+
+### Technical Questions
+
+**Q: Does it work on all operating systems?**
+A: Yes! Windows, Mac, and Linux all supported.
+
+**Q: Can I run multiple instances?**
+A: Yes, one instance per server or multiple channels.
+
+**Q: Does it support multiple languages?**
+A: Yes, 100+ languages via deep-translator.
+
+**Q: How accurate is the OCR?**
+A: Very accurate for clear text. Struggles with stylized fonts or handwriting.
+
+**Q: How accurate is the AI?**
+A: Very accurate. Gemini understands context and rates severity appropriately.
+
+---
+
+### Moderation Questions
+
+**Q: Can users bypass the filter?**
+A: Very difficult. Pattern matching catches 200+ variations per word.
+
+**Q: What if someone reports a false positive?**
+A: Check logs with `/user`, review AI reasoning, adjust threshold or whitelist if needed.
+
+**Q: Can I customize the slur list?**
+A: Yes! Edit `slur_patterns.json` and add/remove words.
+
+**Q: How do I handle appeals?**
+A: Review `/user @username` history, check AI reasoning in logs, reverse if mistake.
+
+**Q: Can I make it stricter/more lenient?**
+A: Yes! Use `/setseverity` to adjust threshold (5=strict, 7=balanced, 9=lenient).
+
+---
+
+### Setup Questions
+
+**Q: I can't install Tesseract, help?**
+A: See [Step 3: Install Tesseract OCR](#step-3-install-tesseract-ocr-5-minutes) above.
+
+**Q: Commands don't show up?**
+A: Wait 10 minutes for Discord sync, or restart bot.
+
+**Q: Bot shows offline?**
+A: Check MESSAGE CONTENT INTENT is enabled in Developer Portal.
+
+**Q: "Tesseract not found" error?**
+A: Add path to bot.py: `pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'`
+
+**Q: How many API keys do I need?**
+A: Minimum 1, recommended 2-3, large servers 5+.
+
+---
+
+## 🎓 Advanced Usage
+
+### Custom Severity Thresholds per Channel
+
+**Currently:** One threshold for entire server
+
+**Workaround:** Run multiple bot instances
+```bash
+# Instance 1: #general (strict)
+python bot.py  # threshold 5
+
+# Instance 2: #memes (lenient)
+python bot2.py  # threshold 9
+```
+
+### Scheduling Reports
+
+**Current:** Reports at midnight EST
+
+**Change timezone:** Edit `bot.py` line ~290:
+```python
+@tasks.loop(time=time(hour=5, minute=0, tzinfo=pytz.timezone('US/Pacific')))
+```
+
+### Export Violations to CSV
+
+**Manual export:**
+```python
+import json
+import csv
+
+with open('violation_logs.json', 'r') as f:
+    logs = json.load(f)
+
+with open('violations.csv', 'w', newline='') as f:
+    writer = csv.DictWriter(f, fieldnames=logs[0].keys())
+    writer.writeheader()
+    writer.writerows(logs)
+```
+
+### Integration with Other Bots
+
+**Webhook notifications:**
+Edit `log_violation()` in bot.py to send webhook:
+```python
+import aiohttp
+
+webhook_url = "https://discord.com/api/webhooks/..."
+async with aiohttp.ClientSession() as session:
+    await session.post(webhook_url, json={"content": "Violation detected!"})
+```
+
+---
+
+## 🌐 Hosting Options
+
+### Option 1: Run on Your PC (FREE)
+
+**Pros:**
+- Completely free
+- Full control
+- Easy to debug
+
+**Cons:**
+- PC must stay on
+- No redundancy
+- Uses your resources
+
+**Best for:** Small servers, testing
+
+---
+
+### Option 2: VPS Hosting ($3-5/month)
+
+**Providers:**
+- DigitalOcean ($5/mo)
+- Vultr ($2.50/mo)
+- Linode ($5/mo)
+- Hetzner ($3.50/mo)
+
+**Setup:**
+```bash
+# SSH into VPS
+ssh root@your-vps-ip
+
+# Install Python
+sudo apt update
+sudo apt install python3 python3-pip tesseract-ocr
+
+# Upload bot files (use SFTP or git clone)
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Run in background
+nohup python3 bot.py &
+```
+
+**Best for:** Medium-large servers, 24/7 uptime
+
+---
+
+### Option 3: Free Hosting
+
+**Replit (Limited):**
+- Free tier available
+- Easy setup
+- Limited uptime (pinging needed)
+
+**Railway.app (Limited):**
+- Free tier: 500 hours/month
+- Sleeps after inactivity
+- Good for small servers
+
+**Heroku (Discontinued):**
+- Free tier removed
+- Not recommended
+
+**Best for:** Very small servers, testing
+
+---
+
+### Option 4: Docker Container
+
+**Dockerfile example:**
+```dockerfile
+FROM python:3.9-slim
+
+RUN apt-get update && apt-get install -y tesseract-ocr
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python", "bot.py"]
+```
+
+**Run:**
+```bash
+docker build -t discord-mod-bot .
+docker run -d --env-file .env discord-mod-bot
+```
+
+**Best for:** Advanced users, multiple instances
+
+---
+
+## 📚 Additional Resources
+
+### Official Documentation
+
+- [Discord.py Docs](https://discordpy.readthedocs.io/)
+- [Gemini API Docs](https://ai.google.dev/docs)
+- [Tesseract OCR Docs](https://tesseract-ocr.github.io/)
+- [deep-translator Docs](https://deep-translator.readthedocs.io/)
+
+### Community
+
+- Discord.py Support Server
+- GitHub Issues (this repository)
+- Stack Overflow (tag: discord.py)
+
+### Related Projects
+
+- Discord Moderation Best Practices
+- Other Discord bot templates
+- Pattern matching libraries
+
+---
+
+## ⚖️ Legal & Disclaimer
+
+### Terms of Use
+
+This bot is provided "as is" without warranty. Use at your own risk.
+
+**You are responsible for:**
+- Compliance with Discord Terms of Service
+- Compliance with local laws
+- Content of your slur database
+- Actions taken based on bot reports
+- Privacy of logged data
+
+**Not responsible for:**
+- False positives/negatives
+- Missed violations
+- API service outages
+- Data loss
+- Moderation decisions
+
+### Privacy Policy
+
+**Data collected:**
+- Discord user IDs (violation tracking)
+- Message content (violations only)
+- Timestamps and channel info
+
+**Data usage:**
+- Moderation purposes only
+- Stored locally on your server
+- Not shared with third parties (except API processing)
+
+**Data retention:**
+- Kept indefinitely in `violation_logs.json`
+- Can be deleted manually anytime
+- Users can request data deletion
+
+**Third-party services:**
+- Gemini API: Processes flagged messages only
+- Google Translate: Processes all messages for translation
+- Both follow their respective privacy policies
+
+### Discord Terms Compliance
+
+This bot complies with Discord's Terms of Service and Bot Guidelines:
+- Respects rate limits
+- Uses proper intents
+- No self-botting
+- No token stealing
+- No spam
+
+**Your responsibility:**
+- Don't use bot to harass
+- Don't share tokens
+- Follow Discord TOS
+- Use appropriately
+
+---
+
+## 🎖️ Credits
+
+**Developed by:** Duck
+
+**Built with:**
+- [Discord.py](https://github.com/Rapptz/discord.py) - Discord API wrapper
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) - Free OCR engine
+- [deep-translator](https://github.com/nidhaloff/deep-translator) - Free translation
+- [Gemini API](https://ai.google.dev/) - AI analysis
+- [Matplotlib](https://matplotlib.org/) - Graphs
+- [Pillow](https://python-pillow.org/) - Image processing
+
+**Special thanks:**
+- Discord.py community
+- Tesseract maintainers
+- Google AI team
+- Open source contributors
+
+---
+
+## 📄 License
+
+MIT License
+
+Copyright (c) 2025 Duck
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## 🚀 Quick Links
+
+- [Installation](#installation)
+- [Commands](#command-reference)
+- [Testing](#testing-your-bot)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
 
 ---
 
 ## 📞 Support
 
 **Having issues?**
-1. Check [Troubleshooting](#troubleshooting)
-2. Read [FAQ](#faq)
-3. Open GitHub issue with details
+1. Read [Troubleshooting](#troubleshooting)
+2. Check [FAQ](#faq)
+3. Review error messages carefully
+4. Open GitHub issue with details
+
+**Questions?**
+- Check this README first
+- Review documentation links
+- Ask in Discord.py support server
+
+---
+
+## ⭐ Star This Project
+
+If this bot helped your server, consider:
+- ⭐ Starring on GitHub
+- 🐛 Reporting bugs
+- 💡 Suggesting features
+- 📖 Improving documentation
+- 🔀 Contributing code
 
 ---
 
 **Made with ❤️ for safer Discord communities**
 
-*Last updated: November 2024 - v3.0.0*
+*Last updated: 2025*
