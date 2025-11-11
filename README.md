@@ -1,6 +1,6 @@
 # 🛡️ Discord AI Moderation Bot
 
-> **Advanced Discord moderation bot with AI-powered context detection, free OCR/translation, and intelligent severity rating system.**
+> **Advanced Discord moderation bot with AI-powered context detection, free translation, and intelligent severity rating system.**
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Discord.py](https://img.shields.io/badge/discord.py-2.3.2-blue.svg)](https://github.com/Rapptz/discord.py)
@@ -19,9 +19,9 @@
 
 ### 🔍 Advanced Detection
 - **Pattern Matching** - Catches 200+ variations per word (leetspeak, spacing, unicode)
-- **Image OCR Scanning** - Reads text from images using Tesseract (FREE)
 - **Slur Database** - 150+ slurs organized by category
 - **Whitelist System** - Trusted users/roles bypass filters
+- **Three Moderation Modes** - Strict, Calm, and Relax modes
 
 ### 📊 Comprehensive Logging
 - **User History Tracking** - View complete violation history per user
@@ -30,7 +30,6 @@
 - **Real-Time Statistics** - Track messages scanned, flagged, and more
 
 ### 💰 Zero Cost
-- **FREE OCR** - Tesseract (local, no API)
 - **FREE Translation** - deep-translator (no API key needed)
 - **FREE AI** - Gemini (60 requests/min per key)
 - **Total Cost: $0/month**
@@ -73,7 +72,6 @@ Automatically generated graph showing:
 - Python 3.8 or higher
 - Discord bot with MESSAGE CONTENT INTENT enabled
 - 2-3 Gemini API keys (free from Google AI Studio)
-- Tesseract OCR installed
 
 ### Installation
 
@@ -83,47 +81,24 @@ git clone https://github.com/yourusername/discord-mod-bot
 cd discord-mod-bot
 ```
 
-2. **Install Tesseract OCR**
-
-**Windows:**
-- Download: https://github.com/UB-Mannheim/tesseract/wiki
-- Install `tesseract-ocr-w64-setup-5.3.3.exe`
-- Add to PATH: `C:\Program Files\Tesseract-OCR`
-
-**Mac:**
-```bash
-brew install tesseract
-```
-
-**Linux:**
-```bash
-sudo apt update
-sudo apt install tesseract-ocr
-```
-
-**Verify installation:**
-```bash
-tesseract --version
-```
-
-3. **Install Python dependencies**
+2. **Install Python dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Configure environment variables**
+3. **Configure environment variables**
 
 Create a `.env` file:
 ```bash
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
 ```
 
-5. **Run the bot**
+4. **Run the bot**
 ```bash
 python bot.py
 ```
 
-6. **Configure in Discord**
+5. **Configure in Discord**
 ```bash
 /addkey api_key:YOUR_GEMINI_KEY
 /setlog #mod-logs
@@ -143,6 +118,7 @@ discord-mod-bot/
 ├── pattern_detector.py         # Pattern matching engine
 ├── slur_patterns.json          # Slur database (150+ words)
 ├── requirements.txt            # Python dependencies
+├── keepalive.py                # Keepalive server (optional)
 ├── .env                        # Environment variables (create this)
 ├── .gitignore                  # Git ignore rules
 ├── config.json                 # Bot config (auto-generated)
@@ -160,6 +136,7 @@ discord-mod-bot/
 | `pattern_detector.py` | Pattern matching | ✅ Yes | ❌ No |
 | `slur_patterns.json` | Slur database | ✅ Yes | ❌ No |
 | `requirements.txt` | Dependencies | ✅ Yes | ❌ No |
+| `keepalive.py` | Keepalive server | ⚠️ Optional | ❌ No |
 | `.env` | Your tokens | ✅ Yes | ❌ No |
 | `.gitignore` | Git protection | ⚠️ Recommended | ❌ No |
 | `config.json` | Bot settings | ✅ Yes | ✅ Yes |
@@ -231,50 +208,7 @@ Each key gets 60 requests/min. More keys = more capacity.
 
 ---
 
-### Step 3: Install Tesseract OCR (5 minutes)
-
-**What is Tesseract?**
-Free, open-source OCR that runs locally. No API calls, no cost.
-
-**Windows Installation:**
-1. Download from: https://github.com/UB-Mannheim/tesseract/wiki
-2. Download `tesseract-ocr-w64-setup-5.3.3.exe`
-3. Run installer (default settings OK)
-4. Note install path: `C:\Program Files\Tesseract-OCR`
-5. Add to PATH:
-   - Search "Environment Variables"
-   - Edit "Path" variable
-   - Add `C:\Program Files\Tesseract-OCR`
-   - Click OK
-6. **Restart terminal/cmd**
-
-**Mac Installation:**
-```bash
-brew install tesseract
-```
-
-**Linux Installation:**
-```bash
-sudo apt update
-sudo apt install tesseract-ocr
-```
-
-**Verify:**
-```bash
-tesseract --version
-```
-Should show: `tesseract 5.x.x`
-
-**If Tesseract not found on Windows:**
-Add this to top of `bot.py` after imports:
-```python
-import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-```
-
----
-
-### Step 4: Install Python Dependencies (2 minutes)
+### Step 3: Install Python Dependencies (2 minutes)
 
 **Navigate to bot folder:**
 ```bash
@@ -290,12 +224,12 @@ pip install -r requirements.txt
 - `discord.py` - Discord API library
 - `google-generativeai` - Gemini AI
 - `Pillow` - Image processing
-- `pytesseract` - Tesseract wrapper
 - `deep-translator` - FREE translation (no API key!)
 - `matplotlib` - Graphs for reports
 - `pytz` - Timezone handling
 - `aiohttp` - Async HTTP requests
 - `python-dotenv` - Environment variables
+- `Flask` - Keepalive server (optional)
 
 **Troubleshooting:**
 - If `pip` not found, try `pip3` or `python -m pip`
@@ -303,7 +237,7 @@ pip install -r requirements.txt
 
 ---
 
-### Step 5: Configure Environment (2 minutes)
+### Step 4: Configure Environment (2 minutes)
 
 **Create `.env` file** in bot folder:
 ```bash
@@ -323,7 +257,7 @@ DISCORD_BOT_TOKEN=MTIzNDU2Nzg5MDEyMzQ1Njc4.GaBcDe.FgHiJkLmNoPqRsTuVwXyZ123456789
 
 ---
 
-### Step 6: Run the Bot (1 minute)
+### Step 5: Run the Bot (1 minute)
 
 **Start bot:**
 ```bash
@@ -343,12 +277,11 @@ API keys: 0
 
 **If errors:**
 - Check `.env` file exists and has correct token
-- Check Tesseract is installed: `tesseract --version`
 - Check all dependencies installed: `pip list`
 
 ---
 
-### Step 7: Configure in Discord (3 minutes)
+### Step 6: Configure in Discord (3 minutes)
 
 **In any channel where bot can see messages:**
 
@@ -457,20 +390,7 @@ testing nigger for the bot
 - ✅ Not logged
 - 💡 Allows mods to test and discuss violations
 
-### Test 5: Image OCR
-
-**Upload image with text:**
-> Image containing: "you're a faggot"
-
-**Expected result:**
-- 🖼️ OCR extracts: "you're a faggot"
-- ✅ Translates to English
-- ✅ Detects: "faggot"
-- 🤖 AI rates severity
-- ❌ Deleted if ≥ threshold
-- 📊 Logged with OCR text included
-
-### Test 6: Foreign Language
+### Test 5: Foreign Language
 
 **Post in monitored channel:**
 ```
@@ -495,7 +415,7 @@ testing nigger for the bot
 | `/setlog #channel` | Set log channel for reports | Admin |
 | `/toggle enabled:True/False` | Enable or disable bot | Admin |
 | `/setseverity threshold:7` | Set minimum severity for punishment (1-10) | Admin |
-| `/modmode strict/calm/status` | Set moderation mode or check status | Admin |
+| `/modmode strict/calm/relax/status` | Set moderation mode or check status | Admin |
 | `/status` | View bot configuration and stats | Anyone |
 
 ### API Key Management
@@ -521,6 +441,7 @@ testing nigger for the bot
 | Command | Description | Permission |
 |---------|-------------|------------|
 | `/user @username` | Check violation history for user | Anyone |
+| `/case @username` | Detailed case history for user | Anyone |
 | `/forcereport` | Generate daily report immediately | Admin |
 
 ---
@@ -542,6 +463,30 @@ testing nigger for the bot
 | 4-6 | Potentially inappropriate | Depends on context | Mild insults, unclear intent | Log only |
 | 7-8 | Clear harassment | Hostile use of slurs | "you retard", "stupid faggot" | Delete + DM |
 | 9-10 | Severe hate speech | Direct attacks, threats | Racial slurs, death threats | Delete + DM |
+
+### Moderation Modes
+
+**Strict Mode** (`/modmode strict`)
+- ALL messages sent to AI
+- No pattern detection needed
+- Highest accuracy
+- Most API usage
+- Best for: Zero-tolerance servers
+
+**Calm Mode** (`/modmode calm`) - DEFAULT
+- Pattern detection first
+- Only detected slurs sent to AI
+- Good accuracy
+- Moderate API usage
+- Best for: Most servers
+
+**Relax Mode** (`/modmode relax`)
+- NO AI checking
+- Pattern-only detection
+- Instant deletion on match
+- ZERO API usage
+- More false positives
+- Best for: Saving API quota
 
 ### Configuring Threshold
 
@@ -670,7 +615,6 @@ The bot **automatically catches 200+ variations**:
 
 | Service | Provider | Cost | Usage |
 |---------|----------|------|-------|
-| OCR | Tesseract (local) | $0 | Unlimited |
 | Translation | deep-translator | $0 | Unlimited (reasonable use) |
 | AI Analysis | Gemini API | $0 | 60 requests/min per key |
 | Hosting | Your PC/VPS | $0-5 | Depends on hosting choice |
@@ -679,7 +623,6 @@ The bot **automatically catches 200+ variations**:
 
 | Feature | This Bot | Paid Alternative |
 |---------|----------|------------------|
-| OCR | FREE (Tesseract) | $1.50 per 1,000 images (Google Vision) |
 | Translation | FREE (deep-translator) | $20/month + $20 per 1M chars (Google Cloud) |
 | AI | FREE (Gemini) | $0.50 per 1M tokens (GPT-4) |
 | **Total** | **$0/month** | **$20-50/month** |
@@ -704,7 +647,7 @@ The bot **automatically catches 200+ variations**:
 - Large server (10,000 members): 100-200 API calls/day
 
 **Why so few API calls?**
-Bot only calls Gemini when slurs are detected! 99% of messages skip AI entirely.
+Bot only calls Gemini when slurs are detected (in Calm mode) or for every message (in Strict mode). 99% of messages in Calm mode skip AI entirely.
 
 ---
 
@@ -727,37 +670,7 @@ Bot only calls Gemini when slurs are detected! 99% of messages skip AI entirely.
 - Rates on 1-10 scale
 - Only punishes above threshold
 
-### 2. FREE Image OCR
-
-**What it does:**
-- Extracts text from uploaded images
-- Translates extracted text
-- Checks for slurs in images
-- Catches users trying to bypass text filters
-
-**Powered by Tesseract:**
-- Open-source OCR by Google
-- Runs locally (no API calls)
-- Supports 100+ languages
-- Very accurate for clear text
-
-**Example:**
-```
-User uploads meme with text: "nigger"
-→ OCR extracts: "nigger"
-→ Translates (if needed)
-→ Detects slur
-→ AI rates severity
-→ Takes action
-```
-
-**Limitations:**
-- Struggles with very small text
-- May miss heavily stylized fonts
-- Handwriting hit-or-miss
-- Best for screenshots and memes
-
-### 3. FREE Multi-Language Translation
+### 2. FREE Multi-Language Translation
 
 **Powered by deep-translator:**
 - Uses Google Translate (unofficial API)
@@ -778,7 +691,7 @@ Message in Spanish: "eres un idiota"
 **Supported languages:**
 Spanish, French, German, Chinese, Japanese, Korean, Arabic, Russian, Portuguese, Italian, and 90+ more!
 
-### 4. Whitelist System
+### 3. Whitelist System
 
 **Why whitelist?**
 - Mods need to discuss violations
@@ -807,11 +720,13 @@ Spanish, French, German, Chinese, Japanese, Korean, Arabic, Russian, Portuguese,
 - Not logged
 - Can post anything without consequences
 
-### 5. User History Tracking
+### 4. User History Tracking
 
 **Track violations per user:**
 ```bash
 /user @username
+# or
+/case @username
 ```
 
 **Shows:**
@@ -829,7 +744,7 @@ Spanish, French, German, Chinese, Japanese, Korean, Arabic, Russian, Portuguese,
 - See if user improving
 - Appeal reviews
 
-### 6. Daily Reports
+### 5. Daily Reports
 
 **Automatic reports at midnight EST:**
 - Beautiful 4-panel graph
@@ -853,7 +768,7 @@ Spanish, French, German, Chinese, Japanese, Korean, Arabic, Russian, Portuguese,
 - Whitelist count
 - Severity threshold
 
-### 7. API Key Rotation
+### 6. API Key Rotation
 
 **Multiple keys = more capacity:**
 ```bash
@@ -896,19 +811,11 @@ Shows which key is currently active.
 pip install -r requirements.txt
 ```
 
-**Error: "Tesseract not found"**
+**Error: "module 'importlib.metadata' has no attribute 'packages_distributions'"**
 
-**Fix (Windows):**
-Add to top of `bot.py`:
-```python
-import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-```
-
-**Fix (Mac/Linux):**
+**Fix (Python 3.9 compatibility):**
 ```bash
-which tesseract  # Find path
-# Add path to bot.py if needed
+pip install --upgrade importlib-metadata
 ```
 
 ### Bot Shows Offline
@@ -966,16 +873,6 @@ Should show "Patterns: 150+"
 - Update: `pip install --upgrade deep-translator`
 - Bot will use original text if translation fails
 
-### OCR Not Reading Images
-
-**Common issues:**
-- Image quality too low
-- Text too small (<12px font)
-- Heavily stylized fonts
-- Handwriting
-
-**This is normal** - OCR works best on clear, printed text.
-
 ### API Keys Getting Rate Limited
 
 **Symptoms:**
@@ -1001,6 +898,8 @@ Bot automatically rotates when limits hit.
 **Too strict:**
 ```bash
 /setseverity threshold:8  # More lenient
+# or
+/modmode relax  # Pattern-only, no AI
 ```
 
 **Still issues:**
@@ -1013,6 +912,8 @@ Bot automatically rotates when limits hit.
 **Missing violations:**
 ```bash
 /setseverity threshold:6  # More strict
+# or
+/modmode strict  # Check ALL messages
 ```
 
 **Add missing words:**
@@ -1038,7 +939,8 @@ Edit `slur_patterns.json` and add new patterns.
 ### API Data
 
 **Sent to Gemini:**
-- Only messages with detected slurs
+- Only messages with detected slurs (Calm mode)
+- OR all messages (Strict mode)
 - For severity rating only
 - Not stored by Google (per Gemini terms)
 
@@ -1048,7 +950,7 @@ Edit `slur_patterns.json` and add new patterns.
 - Standard Google Translate terms apply
 
 **NOT sent anywhere:**
-- Clean messages
+- Clean messages (Calm/Relax modes)
 - Private conversations
 - User personal info
 
@@ -1085,7 +987,6 @@ The included `.gitignore` protects sensitive files automatically when using Git.
 **CPU:**
 - Idle: ~1-2%
 - Processing message: ~5-10%
-- OCR scan: ~20-30% (brief spike)
 
 **RAM:**
 - Base: ~100-150 MB
@@ -1101,35 +1002,36 @@ The included `.gitignore` protects sensitive files automatically when using Git.
 
 **Small Server (100 members):**
 - Messages/day: ~1,000
-- API calls/day: ~5-10
+- API calls/day: ~5-10 (Calm mode)
 - 1 API key sufficient
 - Runs on any PC
 
 **Medium Server (1,000 members):**
 - Messages/day: ~10,000
-- API calls/day: ~20-50
+- API calls/day: ~20-50 (Calm mode)
 - 2-3 API keys recommended
 - Runs on basic VPS
 
 **Large Server (10,000+ members):**
 - Messages/day: ~100,000
-- API calls/day: ~100-200
+- API calls/day: ~100-200 (Calm mode)
 - 3-5 API keys recommended
 - Dedicated VPS recommended
 
 **Very Large Server (50,000+ members):**
 - Messages/day: ~500,000+
-- API calls/day: ~500-1000
+- API calls/day: ~500-1000 (Calm mode)
 - 5-10 API keys needed
 - Consider multiple bot instances
 
 ### Optimization Tips
 
 1. **Multiple API keys** - Add 3-5 for busy servers
-2. **Adjust threshold** - Higher threshold = fewer API calls
-3. **Selective monitoring** - Don't monitor all channels
-4. **Whitelist staff** - Reduces unnecessary checks
-5. **Review patterns** - Remove rarely-triggered patterns
+2. **Use Calm mode** - Only check detected slurs (saves 90% API calls)
+3. **Adjust threshold** - Higher threshold = fewer deletions
+4. **Selective monitoring** - Don't monitor all channels
+5. **Whitelist staff** - Reduces unnecessary checks
+6. **Review patterns** - Remove rarely-triggered patterns
 
 ---
 
@@ -1206,31 +1108,27 @@ Have an idea? Consider:
 ### Version 2.0.0 (Current)
 
 **Major Changes:**
-- ✅ FREE OCR using Tesseract (replaced Google Vision)
 - ✅ FREE translation using deep-translator (replaced Google Cloud)
 - ✅ Severity rating system (1-10 scale)
 - ✅ Context-aware AI detection
 - ✅ Configurable threshold per server
-- ✅ Smart API usage (only when slurs detected)
+- ✅ Three moderation modes (Strict/Calm/Relax)
+- ✅ Smart API usage (only when slurs detected in Calm mode)
 
 **Improvements:**
 - ⬆️ 99% reduction in API costs ($20/mo → $0/mo)
 - ⬆️ Better accuracy (context understanding)
 - ⬆️ Fewer false positives
 - ⬆️ Easier setup (no Google Cloud needed)
+- ⬆️ Removed OCR dependencies (simplified)
+- ⬆️ Removed emoji detection (simplified)
 
 **Removed:**
 - ❌ Google Cloud Translation API
-- ❌ Google Cloud Vision API
+- ❌ Tesseract OCR requirement
+- ❌ pytesseract dependency
+- ❌ emoji library dependency
 - ❌ Credit card requirement
-
-### Version 1.0.0 (Legacy)
-
-- Basic slur detection
-- Google Cloud OCR
-- Google Cloud Translation
-- All messages sent to AI
-- Fixed punishment (no severity)
 
 ---
 
@@ -1240,7 +1138,6 @@ Have an idea? Consider:
 
 **Q: Is this really free?**
 A: Yes! All services used are free:
-- Tesseract OCR (open source)
 - deep-translator (free)
 - Gemini API (free tier)
 - Total: $0/month
@@ -1267,11 +1164,11 @@ A: Yes, one instance per server or multiple channels.
 **Q: Does it support multiple languages?**
 A: Yes, 100+ languages via deep-translator.
 
-**Q: How accurate is the OCR?**
-A: Very accurate for clear text. Struggles with stylized fonts or handwriting.
-
 **Q: How accurate is the AI?**
 A: Very accurate. Gemini understands context and rates severity appropriately.
+
+**Q: What Python version do I need?**
+A: Python 3.8 or higher. Python 3.9-3.11 recommended.
 
 ---
 
@@ -1290,14 +1187,14 @@ A: Yes! Edit `slur_patterns.json` and add/remove words.
 A: Review `/user @username` history, check AI reasoning in logs, reverse if mistake.
 
 **Q: Can I make it stricter/more lenient?**
-A: Yes! Use `/setseverity` to adjust threshold (5=strict, 7=balanced, 9=lenient).
+A: Yes! Use `/setseverity` to adjust threshold (5=strict, 7=balanced, 9=lenient) or `/modmode` to change modes.
 
 ---
 
 ### Setup Questions
 
-**Q: I can't install Tesseract, help?**
-A: See [Step 3: Install Tesseract OCR](#step-3-install-tesseract-ocr-5-minutes) above.
+**Q: I get import errors on Python 3.9?**
+A: Update importlib-metadata: `pip install --upgrade importlib-metadata`
 
 **Q: Commands don't show up?**
 A: Wait 10 minutes for Discord sync, or restart bot.
@@ -1305,11 +1202,11 @@ A: Wait 10 minutes for Discord sync, or restart bot.
 **Q: Bot shows offline?**
 A: Check MESSAGE CONTENT INTENT is enabled in Developer Portal.
 
-**Q: "Tesseract not found" error?**
-A: Add path to bot.py: `pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'`
-
 **Q: How many API keys do I need?**
 A: Minimum 1, recommended 2-3, large servers 5+.
+
+**Q: Do I need Tesseract or OCR?**
+A: No! OCR functionality has been removed for simplicity.
 
 ---
 
@@ -1332,7 +1229,7 @@ python bot2.py  # threshold 9
 
 **Current:** Reports at midnight EST
 
-**Change timezone:** Edit `bot.py` line ~290:
+**Change timezone:** Edit `bot.py` line with `@tasks.loop`:
 ```python
 @tasks.loop(time=time(hour=5, minute=0, tzinfo=pytz.timezone('US/Pacific')))
 ```
@@ -1400,7 +1297,7 @@ ssh root@your-vps-ip
 
 # Install Python
 sudo apt update
-sudo apt install python3 python3-pip tesseract-ocr
+sudo apt install python3 python3-pip
 
 # Upload bot files (use SFTP or git clone)
 # Install dependencies
@@ -1414,7 +1311,7 @@ nohup python3 bot.py &
 
 ---
 
-### Option 3: Free Hosting
+### Option 3: Free Hosting (Limited)
 
 **Replit (Limited):**
 - Free tier available
@@ -1426,10 +1323,6 @@ nohup python3 bot.py &
 - Sleeps after inactivity
 - Good for small servers
 
-**Heroku (Discontinued):**
-- Free tier removed
-- Not recommended
-
 **Best for:** Very small servers, testing
 
 ---
@@ -1438,9 +1331,7 @@ nohup python3 bot.py &
 
 **Dockerfile example:**
 ```dockerfile
-FROM python:3.9-slim
-
-RUN apt-get update && apt-get install -y tesseract-ocr
+FROM python:3.10-slim
 
 WORKDIR /app
 COPY requirements.txt .
@@ -1467,7 +1358,6 @@ docker run -d --env-file .env discord-mod-bot
 
 - [Discord.py Docs](https://discordpy.readthedocs.io/)
 - [Gemini API Docs](https://ai.google.dev/docs)
-- [Tesseract OCR Docs](https://tesseract-ocr.github.io/)
 - [deep-translator Docs](https://deep-translator.readthedocs.io/)
 
 ### Community
@@ -1522,7 +1412,7 @@ This bot is provided "as is" without warranty. Use at your own risk.
 - Users can request data deletion
 
 **Third-party services:**
-- Gemini API: Processes flagged messages only
+- Gemini API: Processes flagged messages only (or all in Strict mode)
 - Google Translate: Processes all messages for translation
 - Both follow their respective privacy policies
 
@@ -1549,15 +1439,14 @@ This bot complies with Discord's Terms of Service and Bot Guidelines:
 
 **Built with:**
 - [Discord.py](https://github.com/Rapptz/discord.py) - Discord API wrapper
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) - Free OCR engine
 - [deep-translator](https://github.com/nidhaloff/deep-translator) - Free translation
 - [Gemini API](https://ai.google.dev/) - AI analysis
 - [Matplotlib](https://matplotlib.org/) - Graphs
 - [Pillow](https://python-pillow.org/) - Image processing
+- [Flask](https://flask.palletsprojects.com/) - Keepalive server
 
 **Special thanks:**
 - Discord.py community
-- Tesseract maintainers
 - Google AI team
 - Open source contributors
 
