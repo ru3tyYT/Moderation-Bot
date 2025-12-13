@@ -1,9 +1,14 @@
 {
   "_instructions": "Pattern matching automatically catches all variations (leetspeak, spacing, unicode, etc.). Add base words only, lowercase, NO asterisks.",
-  
+
   "racial_ethnic_slurs": [
     "nigger",
     "nigga",
+    "nga",
+    "ngga",
+    "blacky",
+    "blackass",
+    "blackasses",
     "chink",
     "spic",
     "kike",
@@ -47,7 +52,7 @@
     "sand monkey",
     "goat fucker",
     "camel fucker",
-    "turban",
+    "turbanhead",
     "haji",
     "muzzie",
     "kebab",
@@ -91,17 +96,33 @@
     "hillbilly",
     "trailer trash",
     "sheep shagger",
-    "nig nog"
+    "nig nog",
+    "abo",
+    "eskimo",
+    "gyppo",
+    "gypsy",
+    "savage",
+    "uncivilized",
+    "foreign trash"
   ],
-  
+
   "homophobic_transphobic_slurs": [
     "faggot",
     "fag",
     "dyke",
     "tranny",
-    "queer"
+    "queer",
+    "poof",
+    "pansy",
+    "fairy",
+    "sissy",
+    "homo",
+    "lesbo",
+    "sheman",
+    "he-she",
+    "troon"
   ],
-  
+
   "ableist_slurs": [
     "retard",
     "retarded",
@@ -116,9 +137,13 @@
     "sped",
     "window licker",
     "mouth breather",
-    "inbred"
+    "inbred",
+    "vegetable",
+    "brain dead",
+    "slow",
+    "dumbass"
   ],
-  
+
   "sexist_gendered_slurs": [
     "cunt",
     "bitch",
@@ -127,20 +152,19 @@
     "skank",
     "tramp",
     "hoe",
-    "thot"
+    "thot",
+    "cow",
+    "bimbo",
+    "harpy",
+    "shrew",
+    "manwhore"
   ],
-  
+
   "dehumanizing_terms": [
-    "subhuman",
-    "untermensch",
-    "mongrel",
+    "prostitute",
     "vermin",
-    "parasite",
-    "cockroach",
-    "savage",
-    "barbarian",
-    "animal",
-    "beast",
-    "creature"
+    "subhuman",
+    "degenerate",
+    "scum",
   ]
 }
