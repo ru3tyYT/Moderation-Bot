@@ -1,11 +1,11 @@
-# requirements.txt - ALL FEATURES ENABLED for dedicated hosting
-# For BotHosting.net, EAS, or any VPS with full access
+# requirements-py39.txt - Python 3.9 Compatible Versions
+# Use this if you're getting importlib.metadata errors on Python 3.9
 
 # Core Discord
 discord.py==2.3.2
 
-# AI & APIs
-google-generativeai==0.3.2
+# AI & APIs - Older version for Python 3.9 compatibility
+google-generativeai==0.2.2
 aiohttp==3.9.1
 
 # Data visualization
@@ -16,20 +16,14 @@ pytz==2023.3
 python-dotenv==1.0.0
 requests==2.31.0
 
-# Image processing & OCR - FULL FEATURES
+# Image processing
 Pillow==10.1.0
-pytesseract==0.3.10
 
-# Translation - FREE
+# Translation - FREE, no API key
 deep-translator==1.11.4
-
-# Emoji detection - FULL UNICODE SUPPORT
-emoji==2.8.0
 
 # Web server for keepalive
 Flask==3.0.0
 
-# Note: You must also install Tesseract OCR system package:
-# Ubuntu/Debian: sudo apt-get install tesseract-ocr
-# Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
-# Mac: brew install tesseract
+# Fix for Python 3.9 importlib.metadata issue
+importlib-metadata==6.8.0
