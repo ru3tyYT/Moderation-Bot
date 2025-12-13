@@ -1,14 +1,14 @@
-# bot.py - Complete version with ALL features for dedicated hosting (BotHosting.net/EAS)
+# bot.py - Discord Moderation Bot with Gemini 2.5 Flash - CLEAN VERSION
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 import json
 import os
-import google.generativeai as genai
 import asyncio
 from datetime import datetime, time
 import pytz
 import io
+import aiohttp
 
 # Fix matplotlib warnings
 import matplotlib
@@ -17,10 +17,6 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.family'] = 'DejaVu Sans'
 
 from collections import defaultdict
-import aiohttp
-from PIL import Image
-import pytesseract
-import emoji as emoji_lib
 from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 import re
@@ -31,48 +27,6 @@ try:
     KEEPALIVE_AVAILABLE = True
 except ImportError:
     KEEPALIVE_AVAILABLE = False
-
-load_dotenv()
-
-from pattern_detector import PatternDetector# bot.py - Fixed version with Gemini 2.0 Flash and Relax Mode
-import discord
-from discord import app_commands
-from discord.ext import commands, tasks
-import json
-import os
-import google.generativeai as genai
-import asyncio
-from datetime import datetime, time
-import pytz
-import io
-
-# Fix matplotlib warnings
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-plt.rcParams['font.family'] = 'DejaVu Sans'
-
-from collections import defaultdict
-import aiohttp
-from PIL import Image
-try:
-    import pytesseract
-    # Try to run tesseract to verify it's actually installed
-    try:
-        pytesseract.get_tesseract_version()
-        TESSERACT_AVAILABLE = True
-        print("✅ Tesseract OCR detected and working")
-    except Exception as e:
-        TESSERACT_AVAILABLE = False
-        print(f"⚠️ Tesseract not properly configured: {e}")
-        print("ℹ️ OCR disabled (optional feature) - Install from: https://github.com/tesseract-ocr/tesseract")
-except ImportError:
-    TESSERACT_AVAILABLE = False
-    print("⚠️ pytesseract package not installed - OCR disabled (optional feature)")
-
-from deep_translator import GoogleTranslator
-from dotenv import load_dotenv
-import re
 
 load_dotenv()
 
@@ -99,8 +53,9 @@ config = {
     "log_channel_id": None,
     "gemini_api_keys": [],
     "current_key_index": 0,
-    "severity_threshold": 7,
-    "mod_mode": "calm"  # calm, strict, or relax
+    "severity_threshold": 9,  # Changed to 9 - only very severe
+    "mod_mode": "calm",
+    "last_api_call": {}  # Track last API call time per key
 }
 
 slur_patterns = []
@@ -227,55 +182,31 @@ def save_stats():
     with open(STATS_FILE, 'w') as f:
         json.dump(stats_to_save, f, indent=4)
 
-def get_current_gemini_model():
-    """FIXED: Use gemini-2.0-flash-exp (latest model)"""
-    if not config["gemini_api_keys"]:
-        return None
-    current_key = config["gemini_api_keys"][config["current_key_index"]]
-    genai.configure(api_key=current_key)
-    return genai.GenerativeModel('gemini-2.0-flash-exp')
-
-def rotate_api_key():
-    if len(config["gemini_api_keys"]) <= 1:
-        return False
-    config["current_key_index"] = (config["current_key_index"] + 1) % len(config["gemini_api_keys"])
-    save_config()
-    print(f"🔄 Rotated to API key #{config['current_key_index'] + 1}")
-    return True
-
 def contains_slur(text):
-    """Check if text contains potential slurs (with plural/variant support)"""
+    """Check if text contains potential slurs"""
     if not text:
         return False, []
     
-    # Check original text
     found, matches = detector.check_text(text, slur_patterns)
     if found:
         return True, matches
     
-    # Check normalized text
     normalized = detector.normalize_text(text)
     found_norm, matches_norm = detector.check_text(normalized, slur_patterns)
     
-    # Also check for common plurals and variants
     all_matches = list(set(matches + matches_norm))
     
-    # Manual plural check for missed cases
     text_lower = text.lower()
     for pattern in slur_patterns:
-        # Check exact match
         if pattern in text_lower:
             if pattern not in all_matches:
                 all_matches.append(pattern)
-        # Check plural (add 's')
         if pattern + 's' in text_lower:
             if pattern not in all_matches:
                 all_matches.append(pattern)
-        # Check with apostrophe s ('s)
         if pattern + "'s" in text_lower:
             if pattern not in all_matches:
                 all_matches.append(pattern)
-        # Check with -es ending
         if pattern + 'es' in text_lower:
             if pattern not in all_matches:
                 all_matches.append(pattern)
@@ -283,15 +214,24 @@ def contains_slur(text):
     return len(all_matches) > 0, all_matches
 
 async def check_severity_with_gemini(text, detected_words):
-    """Use Gemini to rate severity 1-10"""
-    max_retries = len(config["gemini_api_keys"]) if config["gemini_api_keys"] else 1
+    """Use Gemini 2.0 Flash via REST API to rate severity 1-10"""
+    if not config["gemini_api_keys"]:
+        print("⚠️ No API keys configured")
+        return None
     
-    for attempt in range(max_retries):
+    total_keys = len(config["gemini_api_keys"])
+    print(f"🔑 Available keys: {total_keys}")
+    
+    # Try keys one by one, starting from the last successful key
+    start_index = config.get("current_key_index", 0)
+    
+    for attempt in range(total_keys):
+        key_index = (start_index + attempt) % total_keys
+        api_key = config["gemini_api_keys"][key_index]
+        
+        print(f"🔑 Trying key #{key_index + 1}...")
+        
         try:
-            gemini_model = get_current_gemini_model()
-            if not gemini_model:
-                return {"is_harmful": True, "severity": 10, "reason": "No API key", "context": "unknown"}
-            
             prompt = f"""You are a content moderation assistant. Analyze this message for harmful intent.
 
 Detected words: {', '.join(detected_words)}
@@ -303,45 +243,102 @@ Rate the severity from 1-10:
 - 7-8: Clear insults, slurs with negative intent
 - 9-10: Severe hate speech, death threats
 
-Respond ONLY with valid JSON:
-{{
-    "is_harmful": true/false,
-    "severity": 1-10,
-    "reason": "brief explanation",
-    "context": "playful/neutral/hostile"
-}}"""
+Respond ONLY with valid JSON (no markdown, no code blocks):
+{{"is_harmful": true, "severity": 8, "reason": "brief explanation", "context": "hostile"}}"""
 
-            response = gemini_model.generate_content(prompt)
-            result_text = response.text.strip()
+            # Use gemini-2.0-flash (stable version, not exp)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.3,
+                    "maxOutputTokens": 200
+                }
+            }
+            
+            timeout = aiohttp.ClientTimeout(total=8)
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, json=payload) as response:
+                    if response.status == 404:
+                        print(f"⚠️ Key #{key_index + 1}: Model not found")
+                        continue
+                    elif response.status == 429:
+                        print(f"⚠️ Key #{key_index + 1}: Rate limited")
+                        continue
+                    elif response.status == 400:
+                        error_data = await response.json()
+                        error_msg = error_data.get("error", {}).get("message", "Bad request")
+                        print(f"⚠️ Key #{key_index + 1}: {error_msg[:50]}")
+                        continue
+                    elif response.status != 200:
+                        print(f"❌ Key #{key_index + 1}: Error {response.status}")
+                        continue
+                    
+                    data = await response.json()
+            
+            if "candidates" not in data or not data["candidates"]:
+                print(f"⚠️ Key #{key_index + 1}: No response")
+                continue
+            
+            result_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
             
             if "```json" in result_text:
                 result_text = result_text.split("```json")[1].split("```")[0].strip()
             elif "```" in result_text:
                 result_text = result_text.split("```")[1].split("```")[0].strip()
             
-            result = json.loads(result_text)
-            result["severity"] = int(result.get("severity", 10))
+            try:
+                result = json.loads(result_text)
+                result["severity"] = int(result.get("severity", 10))
+                
+                print(f"✅ AI (key #{key_index + 1}): Severity {result['severity']}/10 - {result.get('context')} - {result.get('reason')}")
+                
+                # Save this working key as the starting point for next time
+                config["current_key_index"] = key_index
+                save_config()
+                
+                return result
+                
+            except json.JSONDecodeError:
+                severity_match = re.search(r'"severity":\s*(\d+)', result_text)
+                context_match = re.search(r'"context":\s*"(\w+)"', result_text)
+                
+                if severity_match:
+                    severity = int(severity_match.group(1))
+                    context = context_match.group(1) if context_match else "unknown"
+                    print(f"✅ AI (key #{key_index + 1}): Severity {severity}/10 - {context}")
+                    
+                    # Save this working key
+                    config["current_key_index"] = key_index
+                    save_config()
+                    
+                    return {
+                        "is_harmful": severity >= 7,
+                        "severity": severity,
+                        "reason": "Extracted",
+                        "context": context
+                    }
+                
+                print(f"⚠️ Key #{key_index + 1}: Parse error")
+                continue
             
-            print(f"✅ AI Analysis: Severity {result['severity']}/10 - {result.get('context')} - {result.get('reason')}")
-            
-            return result
+        except asyncio.TimeoutError:
+            print(f"⚠️ Key #{key_index + 1}: Timeout")
+            continue
             
         except Exception as e:
-            error_msg = str(e).lower()
-            if "429" in error_msg or "quota" in error_msg or "rate limit" in error_msg:
-                print(f"⚠️ API key #{config['current_key_index'] + 1} rate limited. Rotating...")
-                if rotate_api_key():
-                    continue
-            else:
-                print(f"❌ Gemini API error: {e}")
-            
-            if attempt == max_retries - 1:
-                return {"is_harmful": True, "severity": 10, "reason": f"API error: {str(e)}", "context": "unknown"}
+            print(f"❌ Key #{key_index + 1}: {str(e)[:50]}")
+            continue
     
-    return {"is_harmful": True, "severity": 10, "reason": "All keys exhausted", "context": "unknown"}
+    print("❌ All keys failed")
+    return None
 
 async def translate_text_free(text):
-    """IMPROVED: Better translation with error handling"""
+    """Translate text using deep-translator"""
     if not text or not text.strip():
         return text, 'unknown'
     
@@ -359,116 +356,7 @@ async def translate_text_free(text):
         print(f"⚠️ Translation error: {e}")
         return text, 'unknown'
 
-async def ocr_image_free(image_url):
-    """Extract text from image using Tesseract OCR (optional)"""
-    if not TESSERACT_AVAILABLE:
-        return None
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(image_url) as resp:
-                if resp.status != 200:
-                    return None
-                image_data = await resp.read()
-        
-        image = Image.open(io.BytesIO(image_data))
-        text = pytesseract.image_to_string(image)
-        
-        if text and text.strip():
-            return text.strip()
-        return None
-        
-    except Exception as e:
-        print(f"⚠️ OCR error (optional feature): {e}")
-        return None
-
-def extract_emoji_names(text):
-    """Extract ALL emoji names from Discord emoji format - COMPREHENSIVE"""
-    if not text:
-        return []
-    
-    emoji_names = []
-    
-    # Pattern 1: Standard Discord emojis :emoji_name:
-    # Matches: :skull:, :middle_finger:, :kys:, etc.
-    standard_pattern = r':([a-zA-Z0-9_\-]+):'
-    standard_matches = re.findall(standard_pattern, text)
-    emoji_names.extend(standard_matches)
-    
-    # Pattern 2: Custom Discord emojis <:name:id> or <a:name:id>
-    # Matches: <:pepe:123456>, <a:dance:789012>
-    custom_pattern = r'<a?:([a-zA-Z0-9_\-]+):\d+>'
-    custom_matches = re.findall(custom_pattern, text)
-    emoji_names.extend(custom_matches)
-    
-    # Pattern 3: Unicode emoji (actual emoji characters) - OPTIONAL
-    # This catches 😀 😂 💀 🖕 etc. - only if emoji library available
-    try:
-        import emoji as emoji_lib
-        # Extract emoji and get their names
-        for char in text:
-            try:
-                if char in emoji_lib.EMOJI_DATA:
-                    emoji_name = emoji_lib.EMOJI_DATA[char].get('en', '').replace(':', '').strip()
-                    if emoji_name:
-                        emoji_names.append(emoji_name)
-            except:
-                # Skip this character if any error
-                continue
-    except ImportError:
-        # Emoji library not installed - that's OK, skip unicode emoji detection
-        pass
-    except Exception:
-        # Any other error - skip unicode emoji detection
-        pass
-    
-    # Process all emoji names into multiple variations
-    processed_names = []
-    for name in emoji_names:
-        if not name:
-            continue
-            
-        # Original name
-        processed_names.append(name)
-        
-        # Lowercase
-        processed_names.append(name.lower())
-        
-        # Uppercase
-        processed_names.append(name.upper())
-        
-        # Replace underscores with spaces
-        processed_names.append(name.replace('_', ' '))
-        processed_names.append(name.lower().replace('_', ' '))
-        processed_names.append(name.upper().replace('_', ' '))
-        
-        # Replace hyphens with spaces
-        processed_names.append(name.replace('-', ' '))
-        processed_names.append(name.lower().replace('-', ' '))
-        
-        # Remove special characters
-        clean_name = name.replace('_', '').replace('-', '')
-        processed_names.append(clean_name)
-        processed_names.append(clean_name.lower())
-        
-        # Split by underscore/hyphen and add individual words
-        parts = re.split(r'[_\-]', name)
-        for part in parts:
-            if len(part) > 1:  # Skip single characters
-                processed_names.append(part)
-                processed_names.append(part.lower())
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique_names = []
-    for name in processed_names:
-        if name and name not in seen:
-            seen.add(name)
-            unique_names.append(name)
-    
-    return unique_names
-
-async def log_violation(message, reason, translated_text, severity_result=None, ocr_text=None):
+async def log_violation(message, reason, translated_text, severity_result=None):
     violation = {
         "timestamp": datetime.utcnow().isoformat(),
         "user_id": message.author.id,
@@ -477,7 +365,6 @@ async def log_violation(message, reason, translated_text, severity_result=None, 
         "channel_name": message.channel.name,
         "message_content": message.content,
         "translated_text": translated_text,
-        "ocr_text": ocr_text,
         "reason": reason,
         "severity": severity_result.get("severity") if severity_result else 10,
         "ai_analysis": severity_result,
@@ -525,10 +412,6 @@ async def log_violation(message, reason, translated_text, severity_result=None, 
     if translated_text and translated_text != message.content:
         translated_preview = translated_text[:1000] if len(translated_text) <= 1000 else translated_text[:1000] + "..."
         embed.add_field(name="Translated", value=f"```{translated_preview}```", inline=False)
-    
-    if ocr_text:
-        ocr_preview = ocr_text[:1000] if len(ocr_text) <= 1000 else ocr_text[:1000] + "..."
-        embed.add_field(name="Text from Image", value=f"```{ocr_preview}```", inline=False)
     
     if severity_result:
         embed.add_field(
@@ -657,20 +540,40 @@ async def on_ready():
     except Exception as e:
         print(f'❌ Failed to sync commands: {e}')
     
-    daily_report_task.start()
-    print(f'✅ {bot.user} has connected to Discord!')
-    print(f'✅ Loaded {len(slur_patterns)} patterns')
-    print(f'✅ Whitelisted: {len(whitelist["users"])} users, {len(whitelist["roles"])} roles')
-    print(f'✅ Severity threshold: {config.get("severity_threshold", 7)}/10')
-    print(f'✅ Moderation mode: {config.get("mod_mode", "calm").upper()}')
-    print(f'✅ API keys: {len(config["gemini_api_keys"])} (including {env_key_count} from environment)')
+    if not daily_report_task.is_running():
+        daily_report_task.start()
     
-    # Optional features status
-    if TESSERACT_AVAILABLE:
-        print(f'✅ OCR: Enabled')
+    print(f'\n{"="*60}')
+    print(f'✅ {bot.user} has connected to Discord!')
+    print(f'{"="*60}')
+    print(f'📊 Configuration:')
+    print(f'   • Patterns loaded: {len(slur_patterns)}')
+    print(f'   • Whitelisted: {len(whitelist["users"])} users, {len(whitelist["roles"])} roles')
+    print(f'   • Severity threshold: {config.get("severity_threshold", 7)}/10')
+    print(f'   • Moderation mode: {config.get("mod_mode", "calm").upper()}')
+    print(f'   • API keys: {len(config["gemini_api_keys"])} configured')
+    print(f'\n📋 Feature Status:')
+    print(f'   ✅ Translation: Enabled')
+    print(f'   ✅ Pattern Detection: Enabled')
+    print(f'   ✅ AI Analysis (Gemini 2.5 Flash): Enabled')
+    print(f'   {"✅" if KEEPALIVE_AVAILABLE else "❌"} Keepalive Server: {"Enabled" if KEEPALIVE_AVAILABLE else "Disabled (optional)"}')
     
     if config.get("mod_mode") == "relax":
-        print(f'ℹ️ RELAX MODE: Pattern-only detection, no AI usage')
+        print(f'\n💡 RELAX MODE: Pattern-only, no AI usage')
+    elif config.get("mod_mode") == "strict":
+        print(f'\n⚠️ STRICT MODE: ALL messages sent to AI')
+    
+    print(f'{"="*60}')
+    print(f'🚀 Bot fully operational!\n')
+    
+    print(f'🔍 Debug Info:')
+    print(f'   • Bot enabled: {config.get("enabled")}')
+    print(f'   • Monitored channel ID: {config.get("monitored_channel_id")}')
+    print(f'   • Log channel ID: {config.get("log_channel_id")}')
+    if config.get("monitored_channel_id"):
+        channel = bot.get_channel(config.get("monitored_channel_id"))
+        print(f'   • Monitored channel: {channel.name if channel else "Not found"}')
+    print()
 
 @bot.tree.command(name="setseverity", description="Set severity threshold")
 @app_commands.describe(threshold="Minimum severity to delete (1-10, default 7)")
@@ -727,7 +630,7 @@ async def modmode(interaction: discord.Interaction, mode: str):
                 value="• Only detected slurs sent to AI\n• Good accuracy\n• Moderate API usage",
                 inline=False
             )
-        else:  # relax
+        else:
             embed.add_field(
                 name="📋 Description",
                 value="• NO AI checking\n• Pattern-only detection\n• ZERO API usage\n• Instant deletion on match",
@@ -769,7 +672,7 @@ async def modmode(interaction: discord.Interaction, mode: str):
             value="• Pattern detection first\n• AI only for flagged messages\n• Moderate API usage",
             inline=False
         )
-    else:  # relax
+    else:
         embed = discord.Embed(
             title="🟢 Relax Mode Enabled",
             description="NO AI - Pattern-only detection",
@@ -922,7 +825,7 @@ async def listkeys(interaction: discord.Interaction):
         return
     
     key_list = "\n".join([
-        f"{'➡️' if i == config['current_key_index'] else '  '} Key #{i+1}: {key[:10]}...{key[-4:]}" 
+        f"Key #{i+1}: {key[:10]}...{key[-4:]}" 
         for i, key in enumerate(config["gemini_api_keys"])
     ])
     await interaction.response.send_message(f"**API Keys ({len(config['gemini_api_keys'])})**:\n```{key_list}```", ephemeral=True)
@@ -938,10 +841,19 @@ async def removekey(interaction: discord.Interaction, key_number: int):
         return
     
     config["gemini_api_keys"].pop(key_number - 1)
-    if config["current_key_index"] >= len(config["gemini_api_keys"]) and config["gemini_api_keys"]:
-        config["current_key_index"] = 0
     save_config()
-    await interaction.response.send_message(f"✅ Removed key #{key_number}", ephemeral=True)
+    await interaction.response.send_message(f"✅ Removed key #{key_number}. Remaining: {len(config['gemini_api_keys'])}", ephemeral=True)
+
+@bot.tree.command(name="clearkeys")
+async def clearkeys(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        return
+    
+    old_count = len(config["gemini_api_keys"])
+    config["gemini_api_keys"] = []
+    save_config()
+    await interaction.response.send_message(f"✅ Cleared all {old_count} API keys", ephemeral=True)
 
 @bot.tree.command(name="user")
 @app_commands.describe(user="User to check")
@@ -1048,11 +960,16 @@ async def on_message(message):
     if message.author.bot:
         return
     
-    if not config["enabled"] or message.channel.id != config.get("monitored_channel_id"):
+    if not config["enabled"]:
+        return
+    
+    if message.channel.id != config.get("monitored_channel_id"):
         return
     
     if isinstance(message.author, discord.Member) and is_whitelisted(message.author):
         return
+    
+    print(f"[SCAN] Message from {message.author}: {message.content[:50]}...")
     
     try:
         daily_stats["messages_scanned"] += 1
@@ -1061,309 +978,169 @@ async def on_message(message):
         save_stats()
         
         mod_mode = config.get("mod_mode", "calm")
-        
-        # ============================================
-        # STRICT MODE: Check ALL messages with AI
-        # NO pattern detection, NO pre-filtering
-        # ============================================
-        if mod_mode == "strict":
-            print(f"[STRICT MODE] Checking message with AI (no pattern filtering)")
-            
-            # Extract emojis for context
-            emoji_names = extract_emoji_names(message.content)
-            emoji_text = " ".join(emoji_names) if emoji_names else ""
-            full_text = message.content
-            if emoji_text:
-                full_text += " [emojis: " + emoji_text + "]"
-            
-            if emoji_names:
-                print(f"[STRICT] Found {len(emoji_names)} emoji(s): {emoji_names[:10]}")
-            
-            # Translate if needed
-            translated_text = full_text
-            if full_text:
-                try:
-                    translated_text, detected_lang = await translate_text_free(full_text)
-                    if detected_lang != "en" and detected_lang != "unknown":
-                        print(f"[STRICT] Translated: {detected_lang} → en")
-                except Exception as e:
-                    print(f"[STRICT] Translation failed: {e}")
-                    translated_text = full_text
-            
-            # OCR check if image present
-            ocr_text = None
-            if TESSERACT_AVAILABLE and message.attachments:
-                for attachment in message.attachments:
-                    if attachment.content_type and attachment.content_type.startswith('image'):
-                        try:
-                            ocr_text = await ocr_image_free(attachment.url)
-                            if ocr_text:
-                                print(f"[STRICT] OCR: '{ocr_text[:50]}'")
-                                translated_ocr, _ = await translate_text_free(ocr_text)
-                                translated_text += f"\n[Image text: {translated_ocr}]"
-                        except:
-                            pass
-            
-            # Send EVERYTHING to AI for analysis
-            print(f"[STRICT] Sending to Gemini: '{translated_text[:100]}...'")
-            severity_result = await check_severity_with_gemini(
-                translated_text or "empty message",
-                ["content check - strict mode"]
-            )
-            
-            severity = severity_result.get("severity", 0)
-            threshold = config.get("severity_threshold", 7)
-            
-            print(f"[STRICT] AI returned severity: {severity}/10 (threshold: {threshold})")
-            print(f"[STRICT] AI context: {severity_result.get('context')} | Reason: {severity_result.get('reason')}")
-            
-            # Take action if meets threshold
-            if severity >= threshold:
-                try:
-                    await message.delete()
-                    print(f"[STRICT] ❌ DELETED (severity {severity} ≥ {threshold})")
-                except Exception as e:
-                    print(f"[STRICT] Delete failed: {e}")
-                
-                # Send DM
-                try:
-                    dm_embed = discord.Embed(
-                        title="⚠️ Message Removed - Strict Mode",
-                        description="Your message was flagged by AI moderation",
-                        color=discord.Color.red()
-                    )
-                    dm_embed.add_field(
-                        name="AI Analysis",
-                        value=f"**Severity:** {severity}/10\n**Reason:** {severity_result.get('reason', 'Flagged by AI')}",
-                        inline=False
-                    )
-                    dm_embed.add_field(name="Server", value=message.guild.name, inline=True)
-                    dm_embed.add_field(name="Channel", value=message.channel.name, inline=True)
-                    dm_embed.set_footer(text="Strict mode - All messages checked | Contact mods if mistake")
-                    await message.author.send(embed=dm_embed)
-                except:
-                    pass
-                
-                # Log violation
-                reason = f"Strict mode AI check: Severity {severity}/10 - {severity_result.get('reason')}"
-                await log_violation(message, reason, translated_text, severity_result, ocr_text)
-            else:
-                print(f"[STRICT] ✅ ALLOWED (severity {severity} < {threshold})")
-            
-            # Exit here - strict mode processing complete
-            return
-        
-        # ============================================
-        # CALM/RELAX MODE: Pattern detection first
-        # ============================================
-        
-        # Extract ALL emoji names (comprehensive)
-        emoji_names = extract_emoji_names(message.content)
-        # ============================================
-        # CALM/RELAX MODE: Pattern detection first
-        # ============================================
-        
-        # Extract ALL emoji names (comprehensive)
-        emoji_names = extract_emoji_names(message.content)
-        emoji_text = " ".join(emoji_names) if emoji_names else ""
-        
-        if emoji_names:
-            print(f"[EMOJI] Detected {len(emoji_names)} emoji name(s)")
-            print(f"[EMOJI] Names: {emoji_names[:10]}")  # Show first 10
-        
-        # Combine message content with emoji names for comprehensive checking
         full_text = message.content
-        if emoji_text:
-            full_text += " " + emoji_text
         
-        # Translate message (including emoji text)
-        translated_text = ""
-        detected_lang = "unknown"
-        
+        translated_text = full_text
         if full_text:
             try:
                 translated_text, detected_lang = await translate_text_free(full_text)
                 if detected_lang != "en" and detected_lang != "unknown":
-                    print(f"[TRANSLATE] {detected_lang} → en: '{full_text[:50]}...' → '{translated_text[:50]}...'")
+                    print(f"[TRANSLATE] {detected_lang} → en")
             except Exception as e:
-                print(f"⚠️ Translation failed: {e}")
                 translated_text = full_text
         
-        # STRICT MODE: Check ALL messages with AI (no pattern detection needed)
+        # STRICT MODE
         if mod_mode == "strict":
-            print(f"[STRICT MODE] Sending ALL messages to AI (no pre-filtering)")
+            print(f"[STRICT MODE] Checking with AI")
             
-            # Send everything to AI
+            has_slur_check, found_patterns = contains_slur(translated_text or full_text)
+            detected_context = found_patterns if has_slur_check else ["general content check"]
+            
+            if found_patterns:
+                print(f"[STRICT] Pattern detected: {found_patterns[:3]}")
+            
             severity_result = await check_severity_with_gemini(
-                translated_text or full_text,
-                ["general content check"]  # No specific slurs detected, checking everything
+                translated_text or full_text or "empty message",
+                detected_context
             )
+            
+            if severity_result is None:
+                print(f"[STRICT] ⚠️ AI unavailable - skipping")
+                return
+            
             severity = severity_result.get("severity", 0)
             threshold = config.get("severity_threshold", 7)
             
-            print(f"[AI] Severity: {severity}/10 (threshold: {threshold})")
+            print(f"[STRICT] Severity: {severity}/10 (threshold: {threshold})")
             
-            # Only flag if AI rates it high enough
             if severity >= threshold:
                 try:
                     await message.delete()
-                    print(f"[ACTION] Deleted (severity {severity} ≥ {threshold})")
+                    print(f"[STRICT] ❌ DELETED")
                 except Exception as e:
-                    print(f"❌ Delete failed: {e}")
+                    print(f"[STRICT] Delete failed: {e}")
                 
-                # Send DM
                 try:
                     dm_embed = discord.Embed(
                         title="⚠️ Message Removed",
-                        description="Your message was removed by moderation",
+                        description="Your message was flagged by AI",
                         color=discord.Color.red()
                     )
                     dm_embed.add_field(
                         name="Reason",
-                        value=f"Severity: **{severity}/10**\n{severity_result.get('reason', 'Inappropriate content')}",
+                        value=f"Severity: {severity}/10\n{severity_result.get('reason', 'N/A')}",
                         inline=False
                     )
-                    dm_embed.add_field(name="Server", value=message.guild.name, inline=True)
-                    dm_embed.add_field(name="Channel", value=message.channel.name, inline=True)
-                    dm_embed.set_footer(text="Contact moderators if this is a mistake")
                     await message.author.send(embed=dm_embed)
                 except:
                     pass
                 
-                reason = f"AI detected: Severity {severity}/10 (Strict mode - all messages checked)"
-                await log_violation(message, reason, translated_text, severity_result, None)
+                reason = f"Strict: Severity {severity}/10"
+                await log_violation(message, reason, translated_text, severity_result)
             else:
-                print(f"[ACTION] Allowed (severity {severity} < {threshold})")
+                print(f"[STRICT] ✅ ALLOWED")
             
-            return  # Done with strict mode processing
+            return
         
-        # CALM/RELAX MODE: Pattern detection first
-        # Check for slurs in BOTH original and translated (including emoji names)
+        # CALM/RELAX MODE
+        print(f"[{mod_mode.upper()} MODE] Checking patterns...")
         has_slur_original, found_slurs_original = contains_slur(full_text)
         has_slur_translated, found_slurs_translated = contains_slur(translated_text)
         
         has_slur = has_slur_original or has_slur_translated
         all_found_slurs = list(set(found_slurs_original + found_slurs_translated))
         
-        # OCR for images (optional - only if Tesseract available)
-        ocr_text = None
-        if TESSERACT_AVAILABLE and message.attachments:
-            for attachment in message.attachments:
-                if attachment.content_type and attachment.content_type.startswith('image'):
-                    try:
-                        ocr_text = await ocr_image_free(attachment.url)
-                        if ocr_text:
-                            print(f"[OCR] Extracted: '{ocr_text[:100]}'")
-                            translated_ocr, _ = await translate_text_free(ocr_text)
-                            
-                            has_slur_ocr_orig, found_slurs_ocr_orig = contains_slur(ocr_text)
-                            has_slur_ocr_trans, found_slurs_ocr_trans = contains_slur(translated_ocr)
-                            
-                            if has_slur_ocr_orig or has_slur_ocr_trans:
-                                has_slur = True
-                                all_found_slurs.extend(found_slurs_ocr_orig + found_slurs_ocr_trans)
-                                all_found_slurs = list(set(all_found_slurs))  # Remove duplicates
-                                print(f"[OCR] Slurs found: {found_slurs_ocr_orig + found_slurs_ocr_trans}")
-                            
-                            translated_text += f"\n[Image text: {translated_ocr}]"
-                    except Exception as e:
-                        print(f"⚠️ OCR error: {e}")
-        elif not TESSERACT_AVAILABLE and message.attachments:
-            # Silently skip OCR if images present but Tesseract not available
-            pass
+        if not has_slur:
+            print(f"[{mod_mode.upper()}] ✅ No patterns")
+            return
         
-        # If slurs detected
-        if has_slur:
-            all_found_slurs = list(set(all_found_slurs))
-            print(f"[DETECT] Found {len(all_found_slurs)} slur(s): {all_found_slurs[:5]}...")  # Show first 5
+        print(f"[DETECT] Found {len(all_found_slurs)} slur(s): {all_found_slurs[:5]}...")
+        
+        # RELAX MODE
+        if mod_mode == "relax":
+            print(f"[RELAX] Instant delete")
+            severity_result = {
+                "is_harmful": True,
+                "severity": 10,
+                "reason": f"Pattern: {', '.join(all_found_slurs[:3])}",
+                "context": "pattern-only"
+            }
             
-            if emoji_names:
-                print(f"[DETECT] (Checked {len(emoji_names)} emoji name(s))")
+            try:
+                await message.delete()
+                print(f"[RELAX] ❌ DELETED")
+            except Exception as e:
+                print(f"Delete failed: {e}")
             
-            # RELAX MODE: No AI, instant delete
-            if mod_mode == "relax":
-                print(f"[RELAX MODE] Instant delete (no AI check)")
-                severity_result = {
-                    "is_harmful": True,
-                    "severity": 10,
-                    "reason": f"Pattern match: {', '.join(all_found_slurs[:3])} (Relax mode - no AI)",
-                    "context": "pattern-only"
-                }
-                
-                try:
-                    await message.delete()
-                    print(f"[ACTION] Deleted message from {message.author}")
-                except Exception as e:
-                    print(f"❌ Delete failed: {e}")
-                
-                # Send DM
-                try:
-                    dm_embed = discord.Embed(
-                        title="⚠️ Message Removed",
-                        description="Your message contained prohibited content",
-                        color=discord.Color.red()
-                    )
-                    dm_embed.add_field(
-                        name="Reason",
-                        value=f"Pattern match: {', '.join(all_found_slurs[:3])}\n(Relax mode - instant removal)",
-                        inline=False
-                    )
-                    dm_embed.add_field(name="Server", value=message.guild.name, inline=True)
-                    dm_embed.add_field(name="Channel", value=message.channel.name, inline=True)
-                    dm_embed.set_footer(text="Contact moderators if this is a mistake")
-                    await message.author.send(embed=dm_embed)
-                except:
-                    pass
-                
-                reason = f"Pattern match: {', '.join(all_found_slurs[:5])} (Relax mode)"
-                await log_violation(message, reason, translated_text, severity_result, ocr_text)
-                
-            # CALM MODE: Use AI for detected slurs only
-            else:  # calm mode
-                print(f"[CALM MODE] Checking detected slurs with AI...")
-                severity_result = await check_severity_with_gemini(
-                    translated_text or full_text, 
-                    all_found_slurs
+            try:
+                dm_embed = discord.Embed(
+                    title="⚠️ Message Removed",
+                    description="Prohibited content detected",
+                    color=discord.Color.red()
                 )
-                severity = severity_result.get("severity", 10)
-                threshold = config.get("severity_threshold", 7)
-                
-                print(f"[AI] Severity: {severity}/10 (threshold: {threshold})")
-                
-                # Take action if severity meets threshold
-                if severity >= threshold:
-                    try:
-                        await message.delete()
-                        print(f"[ACTION] Deleted (severity {severity} ≥ {threshold})")
-                    except Exception as e:
-                        print(f"❌ Delete failed: {e}")
-                    
-                    # Send DM
-                    try:
-                        dm_embed = discord.Embed(
-                            title="⚠️ Message Removed",
-                            description="Your message was removed by moderation",
-                            color=discord.Color.orange()
-                        )
-                        dm_embed.add_field(
-                            name="Reason",
-                            value=f"Severity: **{severity}/10**\n{severity_result.get('reason', 'Inappropriate content')}",
-                            inline=False
-                        )
-                        dm_embed.add_field(name="Server", value=message.guild.name, inline=True)
-                        dm_embed.add_field(name="Channel", value=message.channel.name, inline=True)
-                        dm_embed.set_footer(text="Contact moderators if this is a mistake")
-                        await message.author.send(embed=dm_embed)
-                    except:
-                        pass
-                else:
-                    print(f"[ACTION] Logged only (severity {severity} < {threshold})")
-                
-                reason = f"Detected: {', '.join(all_found_slurs[:5])} - Severity: {severity}/10"
-                await log_violation(message, reason, translated_text, severity_result, ocr_text)
+                dm_embed.add_field(
+                    name="Reason",
+                    value=f"Pattern: {', '.join(all_found_slurs[:3])}",
+                    inline=False
+                )
+                await message.author.send(embed=dm_embed)
+            except:
+                pass
+            
+            reason = f"Pattern: {', '.join(all_found_slurs[:5])}"
+            await log_violation(message, reason, translated_text, severity_result)
+            return
+            
+        # CALM MODE
+        print(f"[CALM] Checking with AI...")
+        severity_result = await check_severity_with_gemini(
+            translated_text or full_text, 
+            all_found_slurs
+        )
+        
+        if severity_result is None:
+            print(f"[CALM] AI unavailable - using pattern fallback")
+            severity_result = {
+                "is_harmful": True,
+                "severity": 8,
+                "reason": f"Pattern (AI unavailable): {', '.join(all_found_slurs[:3])}",
+                "context": "pattern-fallback"
+            }
+        
+        severity = severity_result.get("severity", 8)
+        threshold = config.get("severity_threshold", 7)
+        
+        print(f"[CALM] Severity: {severity}/10 (threshold: {threshold})")
+        
+        if severity >= threshold:
+            try:
+                await message.delete()
+                print(f"[CALM] ❌ DELETED")
+            except Exception as e:
+                print(f"Delete failed: {e}")
+            
+            try:
+                dm_embed = discord.Embed(
+                    title="⚠️ Message Removed",
+                    description="Your message was removed",
+                    color=discord.Color.orange()
+                )
+                dm_embed.add_field(
+                    name="Reason",
+                    value=f"Severity: {severity}/10\n{severity_result.get('reason', 'N/A')}",
+                    inline=False
+                )
+                await message.author.send(embed=dm_embed)
+            except:
+                pass
+        else:
+            print(f"[CALM] ✅ LOGGED ONLY")
+        
+        reason = f"Detected: {', '.join(all_found_slurs[:5])} - {severity}/10"
+        await log_violation(message, reason, translated_text, severity_result)
             
     except Exception as e:
-        print(f"❌ Error processing message: {e}")
+        print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
 
@@ -1374,29 +1151,15 @@ if __name__ == "__main__":
         if os.path.exists("token.txt"):
             with open("token.txt", "r") as f:
                 TOKEN = f.read().strip()
-            print("✅ Loaded token from token.txt")
         else:
-            print("=" * 50)
             print("❌ ERROR: DISCORD_BOT_TOKEN not set")
-            print("=" * 50)
-            print("\n⚠️ CRITICAL: Reset your token first!")
-            print("Your token was posted publicly in chat.")
-            print("\n1. Go to https://discord.com/developers/applications")
-            print("2. Your Bot → Bot → Reset Token")
-            print("3. Copy NEW token")
-            print("4. Add to .env or token.txt")
-            print("=" * 50)
             exit(1)
     
     print(f"✅ Token loaded")
-    print(f"🚀 Starting bot with Gemini 2.0 Flash...")
+    print(f"🚀 Starting bot...")
     
-    # Start keepalive server if available
     if KEEPALIVE_AVAILABLE:
         keep_alive()
         start_self_ping()
-        print("✅ Keepalive server started - bot will stay online")
-    else:
-        print("ℹ️ Keepalive not available (optional) - install Flask to enable")
     
     bot.run(TOKEN)
