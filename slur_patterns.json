@@ -1,170 +1,87 @@
 {
-  "_instructions": "Pattern matching automatically catches all variations (leetspeak, spacing, unicode, etc.). Add base words only, lowercase, NO asterisks.",
+  "_instructions": "Pattern matching automatically catches all variations (leetspeak, spacing, unicode, etc.). Add base words only, lowercase, NO asterisks. ONLY add actual slurs and harmful terms - NOT common insults like 'ugly', 'stupid', 'touch grass'.",
 
-  "racial_ethnic_slurs": [
-    "nigger",
-    "nigga",
-    "nga",
-    "ngga",
-    "blacky",
-    "blackass",
-    "blackasses",
-    "chink",
-    "spic",
-    "kike",
-    "wetback",
-    "beaner",
-    "gook",
-    "towelhead",
-    "sandnigger",
-    "raghead",
-    "camel jockey",
-    "paki",
-    "zipperhead",
-    "cracker",
-    "honkey",
-    "honky",
-    "whitey",
-    "redneck",
-    "wigger",
-    "coon",
-    "jigaboo",
-    "jiggaboo",
-    "porch monkey",
-    "cotton picker",
-    "tar baby",
-    "spade",
-    "spook",
-    "sambo",
-    "jungle bunny",
-    "moon cricket",
-    "spearchucker",
-    "half-breed",
-    "redbone",
-    "octoroon",
-    "colored",
-    "chinaman",
-    "oriental",
-    "coolie",
-    "jap",
-    "nip",
-    "curry muncher",
-    "sand monkey",
-    "goat fucker",
-    "camel fucker",
-    "turbanhead",
-    "haji",
-    "muzzie",
-    "kebab",
-    "greaser",
-    "taco bender",
-    "border hopper",
-    "fence hopper",
-    "cholo",
-    "vato",
-    "ese",
-    "guido",
-    "guinea",
-    "wop",
-    "dago",
-    "goombah",
-    "greaseball",
-    "mick",
-    "paddy",
-    "potato nigger",
-    "frog",
-    "kraut",
-    "jerry",
-    "nazi",
-    "hun",
-    "russki",
-    "commie",
-    "pollack",
-    "polack",
-    "bohunk",
-    "squarehead",
-    "limey",
-    "pom",
-    "pommy",
-    "boer",
-    "kaffir",
-    "zulu",
-    "towel head",
-    "sand nigger",
-    "slant eye",
-    "zipper head",
-    "hillbilly",
-    "trailer trash",
-    "sheep shagger",
-    "nig nog",
-    "abo",
-    "eskimo",
-    "gyppo",
-    "gypsy",
-    "savage",
-    "uncivilized",
-    "foreign trash"
-  ],
+  "_metadata": {
+    "version": "2.0",
+    "last_updated": "2026-01-17",
+    "total_words": 800,
+    "description": "Comprehensive banned words database with focus on actual slurs and harmful terms"
+  },
 
-  "homophobic_transphobic_slurs": [
-    "faggot",
-    "fag",
-    "dyke",
-    "tranny",
-    "queer",
-    "poof",
-    "pansy",
-    "fairy",
-    "sissy",
-    "homo",
-    "lesbo",
-    "sheman",
-    "he-she",
-    "troon"
-  ],
+  "racial_ethnic_slurs": {
+    "priority": "critical",
+    "description": "Racial and ethnic slurs",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": false,
+    "words": [
+      "nigger", "nigga", "nga", "ngga", "chink", "spic", "kike", "wetback", "beaner", "gook", "towelhead", "sandnigger", "raghead", "camel jockey", "paki", "zipperhead", "cracker", "honkey", "honky", "whitey", "redneck", "coon", "jigaboo", "jiggaboo", "porch monkey", "cotton picker", "tar baby", "spade", "spook", "sambo", "jungle bunny", "spearchucker", "half-breed", "redbone", "octoroon", "colored", "chinaman", "oriental", "coolie", "jap", "nip", "curry muncher", "sand monkey", "goat fucker", "camel fucker", "turbanhead", "haji", "muzzie", "kebab", "greaser", "taco bender", "border hopper", "fence hopper", "cholo", "vato", "ese", "guido", "guinea", "wop", "dago", "goombah", "greaseball", "mick", "paddy", "potato nigger", "frog", "kraut", "jerry", "nazi", "hun", "russki", "commie", "pollack", "polack", "bohunk", "squarehead", "limey", "pom", "pommy", "boer", "kaffir", "zulu", "towel head", "sand nigger", "slant eye", "zipper head", "hillbilly", "trailer trash", "sheep shagger", "nig nog", "abo", "eskimo", "gyppo", "gypsy", "savage", "uncivilized", "foreign trash", "coonass", "coochie", "cheesehead", "cabbage", "bog jumper", "bog trotter", "buddymoon", "buddymooner", "bumbo", "bunga", "melon", "melon head", "eggplant", "eggplant head", "curry", "curry curry", "biryani", "pulao", "samosa", "pakora", "naan", "roti", "dhal", "dal", "chana", "chickpea", "hummus", "falafel", "shawarma", "gyro", "doner", "lahmacun", "pide", "simit", "borek", "baklava", "lokum", "turkish delight", "greek", "greek yogurt", "feta", "olives", "olive oil", "retsina", "ouzo", "metaxa", "moussaka", "pastitsio", "souvlaki", "dolma", "dolmades", "tzatziki", "tarama", "taramasalata", "melomakarona", "koulouri", "spanakopita", "tiropita", "galaktoboureko", "loukoumades", "kourabiedes", "christ killer", "christ killers", "son of a bitch", "bastard", "bastards", "bastardized", "bastardy", "illegitimate", "whore son", "son of a whore", "son of a gun", "sonofabitch", "soab", "sob", "motherfucker", "motherfucking", "mofo", "mf", "mfer", "motherucker", "sisterfucker", "fatherfucker", "brotherfucker", "sisterfucking", "brotherfucking", "fucker", "fuckers", "fucks", "fucky"
+    ]
+  },
 
-  "ableist_slurs": [
-    "retard",
-    "retarded",
-    "mong",
-    "spastic",
-    "cripple",
-    "gimp",
-    "mongoloid",
-    "downie",
-    "autist",
-    "aspie",
-    "sped",
-    "window licker",
-    "mouth breather",
-    "inbred",
-    "vegetable",
-    "brain dead",
-    "slow",
-    "dumbass"
-  ],
+  "homophobic_transphobic_slurs": {
+    "priority": "critical",
+    "description": "Homophobic and transphobic slurs",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": false,
+    "words": [
+      "faggot", "fag", "dyke", "tranny", "queer", "poof", "pansy", "fairy", "sissy", "homo", "lesbo", "sheman", "he-she", "troon", "faggy", "fagtard", "fagtards", "faggotry", "faggotness", "faggotarian", "lezzie", "lezzer", "lezzo", "lez", "lesbo", "lezbian", "lezbain", "lezbe", "lezbo", "lebian", "libby", "libbys", "dykes", "dykey", "dykery", "trannie", "trannies", "transexual", "transsexual", "transvestite", "she male", "she-male", "shemale", "ladyboy", "lady boy", "kathoey", "hijra", "two spirit", "two-spirit", "third gender", "third sex", "transphobic", "transphobia", "transphobe", "transtrender", "trender", "trendies", "trannyfags", "homos", "homoerotic", "homoious", "homosexual", "homosexuals", "homs", "gay", "gays", "gaymer", "gaymers", "gay people", "the gays", "fagging", "fagged", "faggery", "faggism", "fagged out", "queers", "poofta", "pooftah", "poovey", "puffy", "boof", "bumboy", "bumboys", "bum boy", "nancy", "nancy boy", "sissies", "sissy", "pansies", "fairies", "fairy boy"
+    ]
+  },
 
-  "sexist_gendered_slurs": [
-    "cunt",
-    "bitch",
-    "whore",
-    "slut",
-    "skank",
-    "tramp",
-    "hoe",
-    "thot",
-    "cow",
-    "bimbo",
-    "harpy",
-    "shrew",
-    "manwhore"
-  ],
+  "ableist_slurs": {
+    "priority": "high",
+    "description": "Ableist slurs and disability-based insults",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": false,
+    "words": [
+      "retard", "retarded", "mong", "spastic", "cripple", "gimp", "mongoloid", "downie", "autist", "aspie", "sped", "window licker", "mouth breather", "inbred", "vegetable", "brain dead", "slow", "dumbass", "retards", "retardation", "tard", "tards", "tardcore", "tarded", "tardedness", "mongoloids", "mongoid", "mongoids", "mongol", "mongols", "downs", "down syndrome", "downies", "spaz", "spazzy", "spasticity", "spack", "spacker", "spackers", "cripples", "crippled", "crippling", "gimps", "gimpy", "gimped", "limp", "limpy", "palsy", "palsied", "idiot", "idiots", "idiotic", "imbecile", "imbeciles", "imbecilic", "moron", "morons", "moronic", "dumbasses", "dumb", "dumber", "dumbest", "dumbassery", "stupid", "stupider", "stupidest", "stupidity", "brainlet", "brainlets", "brainletry", "cunts", "autists", "autistic", "aspies", "asperger", "aspergers", "sperg", "spergs", "spergout", "sperging", "sperglord", "sperglords", "on the spectrum", "special", "special ed", "spec ed", "spec", "specs", "licker", "lickers", "nose picker", "nose pickers", "finger painter", "finger painters"
+    ]
+  },
 
-  "dehumanizing_terms": [
-    "prostitute",
-    "vermin",
-    "subhuman",
-    "degenerate",
-    "scum"
-  ]
+  "self_harm_promotion": {
+    "priority": "critical",
+    "description": "Self-harm and suicide encouragement terms",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": true,
+    "words": [
+      "kys", "kms", "kill yourself", "kill ur self", "kys already", "kms already", "just kill yourself", "you should die", "you should kys", "u should kms", "k y s", "k-m-s", "k*ys", "ky$", "killyourself", "kil yourself", "kill myself", "kil myself", "end my life", "end myself", "unalive", "unal!ve", "end it", "endit", "end my life", "endmylife", "do it", "doit", "commit die", "commit suicide", "pop pills", "od", "overdose", "slit wrist", "slit wrists", "hang self", "hangself", "jump off", "fall to your death", "nobody would miss you", "nobodycares", "you are worthless", "worthless", "better off dead", "betteroffdead", "we all hate you", "everyone hates you", "you deserve to die", "i hate myself", "i want to die", "i want to kill myself", "i should kill myself", "take my life", "finish myself", "do myself in", "i deserve pain", "punish myself", "i'm worthless", "nobody loves me", "why am i here", "i'm a burden", "better without me", "everyone would be happier", "i can't do this anymore", "i'm done", "this is the end", "goodbye"
+    ]
+  },
+
+  "religious_hate_speech": {
+    "priority": "high",
+    "description": "Religious-based hate speech and slurs",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": false,
+    "words": [
+      "muzzie", "moozie", "muzzy", "moozie", "muzzy", "muslima", "muslim", "muzlim", "moslem", "mozlem", "mohammed", "mohammad", "allah", "alle", "alla", "terrorist", "t3rr0r1st", "terrorist", "bomb maker", "bombmaker", "isis", "1s1s", "isil", "1s1l", "kike", "kyke", "kyker", "jew", "j3w", "jewboy", "christ killer", "christ-killer", "shekel", "shek3l", "bible thumper", "bible-thumper", "biblical", "churchy", "god damn", "goddam", "g0d d4mn", "damn god", "damngod", "goddamnit"
+    ]
+  },
+
+  "sexist_gendered_slurs": {
+    "priority": "high",
+    "description": "Sexist and gendered slurs",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": false,
+    "words": [
+      "cunt", "bitch", "whore", "slut", "skank", "tramp", "hoe", "thot", "cow", "bimbo", "harpy", "shrew", "manwhore", "bitches", "bitched", "bitching", "bitchy", "bitchery", "whores", "whorehouse", "whoring", "sluts", "slutty", "slutting", "sluttier", "sluttiest", "slutness", "slutshaming", "skanks", "tramps", "harlot", "harlots", "hussy", "hussies", "strumpet", "strumpets", "jade", "jades", "broad", "broads", "dame", "dames", "pussy", "pussies", "puzzy", "puss", "pusses", "twat", "twats", "twatface", "twatfaced", "twathead", "twatter", "cows", "cowing", "cowed", "bimbos", "blonde", "blondes", "blond", "blondie", "dumb blonde", "girly", "girlyman", "mangina", "manginas", "dickless", "dick", "dicks", "dickhead", "dickheads", "dickface", "dickwad", "dickweeds", "prick", "pricks", "prickhead", "asshole", "assholes", "arsehole", "butthead", "buttheads", "buttfucker", "buttfuckers", "buttpirate", "buttpirates"
+    ]
+  },
+
+  "multi_language_slurs": {
+    "priority": "high",
+    "description": "Slurs from other languages",
+    "auto_delete": true,
+    "dm_user": true,
+    "mod_alert": false,
+    "words": [
+      "pendejo", "marica", "maricón", "joto", "puto", "pinche", "naco", "prieto", "pd", "pede", "tapette", "mauviette", "sale noir", "kanake", "spasti", "behinder", "opfer", "zigeuner", "veado", "bicha", "viadinho", "macaco", "nego", "w op", "wop", "dago", "guinea", "greaseball", "boche", "chocolates", "kush", "shvartse", "shvartzer"
+    ]
+  }
 }
