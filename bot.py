@@ -20,6 +20,7 @@ from collections import defaultdict
 from deep_translator import GoogleTranslator
 from dotenv import load_dotenv
 import re
+import random
 
 # Keepalive for hosting stability
 try:
@@ -46,27 +47,56 @@ SLURS_FILE = "slur_patterns.json"
 LOGS_FILE = "violation_logs.json"
 STATS_FILE = "daily_stats.json"
 WHITELIST_FILE = "whitelist.json"
+REPORTS_FILE = "reports.json"
+USER_HISTORY_FILE = "user_history.json"
 
 config = {
     "enabled": False,
     "monitored_channel_id": None,
     "log_channel_id": None,
+    "report_channel_id": None,
+    "mod_alert_channel_id": None,
     "gemini_api_keys": [],
     "current_key_index": 0,
-    "severity_threshold": 9,  # Changed to 9 - only very severe
+    "severity_threshold": 9,
     "mod_mode": "calm",
-    "last_api_call": {}  # Track last API call time per key
+    "last_api_call": {},
+    "dm_on_violation": True,
+    "auto_escalate": True,
+    "escalation_enabled": True
 }
 
 slur_patterns = []
+slur_categories = {}
 violation_logs = []
 whitelist = {"users": [], "roles": []}
+reports_database = {"reports": [], "next_id": 1}
+user_history = {}
 daily_stats = {
     "messages_scanned": 0,
     "messages_flagged": 0,
     "users_caught": set(),
     "hourly_scans": defaultdict(int),
     "date": str(datetime.now().date())
+}
+
+escalation_matrix = {
+    1: {"action": "warning", "mute_duration": None, "ban_duration": None},
+    2: {"action": "warning", "mute_duration": None, "ban_duration": None},
+    3: {"action": "mute", "mute_duration": 60, "ban_duration": None},
+    4: {"action": "mute", "mute_duration": 1440, "ban_duration": None},
+    5: {"action": "mute", "mute_duration": 10080, "ban_duration": None},
+    6: {"action": "ban", "mute_duration": None, "ban_duration": "permanent"}
+}
+
+warning_templates = {
+    "racial_ethnic_slurs": "Your message contained a racial slur. This type of language harasses people based on their race or ethnicity and is strictly prohibited in this community. This is an automated warning. Continued violations may result in temporary or permanent ban.",
+    "homophobic_transphobic_slurs": "Your message contained a slur targeting LGBTQ+ individuals. This language is harmful and violates our inclusion policy. This is an automated warning. Continued violations may result in moderation action.",
+    "ableist_slurs": "Your message contained ableist language targeting individuals with disabilities. This type of language is harmful and violates our accessibility policy. This is an automated warning.",
+    "self_harm_promotion": "Your message appeared to encourage self-harm or suicide. We take this very seriously as it can harm others. If you're struggling, please reach out for help: Crisis Text Line: Text HOME to 741741, Suicide Prevention Lifeline: 988. This is an automated warning.",
+    "religious_hate_speech": "Your message contained religious hate speech. This type of language targets people based on their religion and is strictly prohibited. This is an automated warning.",
+    "sexist_gendered_slurs": "Your message contained sexist or gendered slurs. This language is harmful and violates our inclusion policy. This is an automated warning.",
+    "multi_language_slurs": "Your message contained a slur in another language. This type of language is harmful regardless of the language used. This is an automated warning."
 }
 
 def load_config():
@@ -84,6 +114,88 @@ def save_config():
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=4)
 
+def load_slur_categories():
+    global slur_categories
+    slur_categories = {}
+    if os.path.exists(SLURS_FILE):
+        try:
+            with open(SLURS_FILE, 'r') as f:
+                data = json.load(f)
+            for category, value in data.items():
+                if not category.startswith('_') and isinstance(value, dict) and 'words' in value:
+                    slur_categories[category] = value
+            print(f"✅ Loaded {len(slur_categories)} categories from database")
+        except Exception as e:
+            print(f"❌ Error loading categories: {e}")
+
+def load_reports():
+    global reports_database
+    if os.path.exists(REPORTS_FILE):
+        try:
+            with open(REPORTS_FILE, 'r') as f:
+                reports_database = json.load(f)
+            print(f"✅ Loaded {len(reports_database.get('reports', []))} reports")
+        except Exception as e:
+            print(f"❌ Error loading reports: {e}")
+            reports_database = {"reports": [], "next_id": 1}
+
+def save_reports():
+    with open(REPORTS_FILE, 'w') as f:
+        json.dump(reports_database, f, indent=4)
+
+def load_user_history():
+    global user_history
+    if os.path.exists(USER_HISTORY_FILE):
+        try:
+            with open(USER_HISTORY_FILE, 'r') as f:
+                user_history = json.load(f)
+            print(f"✅ Loaded history for {len(user_history)} users")
+        except Exception as e:
+            print(f"❌ Error loading user history: {e}")
+            user_history = {}
+
+def save_user_history():
+    with open(USER_HISTORY_FILE, 'w') as f:
+        json.dump(user_history, f, indent=4)
+
+def generate_violation_id():
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    random_suffix = random.randint(1000, 9999)
+    return f"VL-{timestamp}-{random_suffix}"
+
+def generate_report_id():
+    report_id = f"RPT-{datetime.now().strftime('%Y%m%d')}-{str(reports_database['next_id']).zfill(4)}"
+    reports_database['next_id'] += 1
+    save_reports()
+    return report_id
+
+def get_user_violation_count(user_id):
+    return len([v for v in violation_logs if v.get("user_id") == user_id])
+
+def get_user_history(user_id):
+    return user_history.get(str(user_id), {"violations": [], "reports": [], "actions": []})
+
+def update_user_history(user_id, entry_type, data):
+    user_id_str = str(user_id)
+    if user_id_str not in user_history:
+        user_history[user_id_str] = {"violations": [], "reports": [], "actions": []}
+    user_history[user_id_str][entry_type].append({
+        "timestamp": datetime.utcnow().isoformat(),
+        **data
+    })
+    save_user_history()
+
+def get_escalation_action(violation_count):
+    if violation_count >= 6:
+        return escalation_matrix[6]
+    return escalation_matrix.get(violation_count, escalation_matrix[1])
+
+def get_category_for_word(word):
+    for category, data in slur_categories.items():
+        if word in data.get("words", []):
+            return category
+    return "unknown"
+
 def load_slur_patterns():
     global slur_patterns
     patterns = []
@@ -91,15 +203,183 @@ def load_slur_patterns():
         try:
             with open(SLURS_FILE, 'r') as f:
                 data = json.load(f)
-            for category, words in data.items():
+            for category, value in data.items():
                 if not category.startswith('_'):
-                    patterns.extend([w for w in words if not w.startswith('_')])
+                    if isinstance(value, dict) and 'words' in value:
+                        patterns.extend([w for w in value['words'] if not w.startswith('_')])
+                    elif isinstance(value, list):
+                        patterns.extend([w for w in value if not w.startswith('_')])
             slur_patterns = patterns
             print(f"✅ Loaded {len(slur_patterns)} patterns from database")
         except Exception as e:
             print(f"❌ Error loading patterns: {e}")
     else:
         print(f"⚠️ Warning: {SLURS_FILE} not found")
+
+async def send_enhanced_dm(user, triggered_word, category, severity, violation_count):
+    """Send enhanced DM with triggered word and pre-filled warning"""
+    if not config.get("dm_on_violation", True):
+        return False, "DM disabled"
+
+    try:
+        embed = discord.Embed(
+            title="⚠️ Message Removed",
+            description="Your message was removed for violating community guidelines.",
+            color=discord.Color.red(),
+            timestamp=datetime.utcnow()
+        )
+
+        category_name = category.replace("_", " ").title()
+        embed.add_field(name="🚫 Triggered Word", value=f"**{triggered_word}**", inline=False)
+        embed.add_field(name="📋 Category", value=category_name, inline=True)
+        embed.add_field(name="⚖️ Severity", value=f"**{severity}/10**", inline=True)
+        embed.add_field(name="📊 Your History", value=f"**{violation_count}** total violation(s)", inline=True)
+
+        warning_text = warning_templates.get(category, "Your message violated community guidelines. This is an automated warning.")
+        embed.add_field(name="📝 Warning", value=warning_text, inline=False)
+
+        if violation_count >= 3:
+            escalation = get_escalation_action(violation_count)
+            action_text = f"Next violation: {escalation['action']}"
+            if escalation['mute_duration']:
+                action_text += f" ({escalation['mute_duration']} minutes)"
+            elif escalation['ban_duration']:
+                action_text += f" ({escalation['ban_duration']})"
+            embed.add_field(name="⚠️ Escalation Warning", value=action_text, inline=False)
+
+        embed.add_field(name="📞 Questions?", value="Contact a server moderator if you believe this was a mistake.", inline=False)
+
+        await user.send(embed=embed)
+        return True, "DM sent"
+
+    except discord.Forbidden:
+        return False, "DM blocked (user DMs disabled)"
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
+async def send_report_channel(report_embed, report_view, report_data):
+    """Send report to dedicated report channel"""
+    if not config.get("report_channel_id"):
+        return None
+
+    report_channel = bot.get_channel(config["report_channel_id"])
+    if not report_channel:
+        return None
+
+    message = await report_channel.send(embed=report_embed, view=report_view)
+    return message
+
+async def log_violation(message, reason, translated_text, severity_result=None, triggered_word=None, category=None):
+    violation = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": message.author.id,
+        "user_name": str(message.author),
+        "channel_id": message.channel.id,
+        "channel_name": message.channel.name,
+        "message_content": message.content,
+        "translated_text": translated_text,
+        "reason": reason,
+        "severity": severity_result.get("severity") if severity_result else 10,
+        "ai_analysis": severity_result,
+        "attachments": [att.url for att in message.attachments],
+        "triggered_word": triggered_word,
+        "category": category
+    }
+
+    violation_logs.append(violation)
+    save_logs()
+
+    daily_stats["messages_flagged"] += 1
+    daily_stats["users_caught"].add(message.author.id)
+    save_stats()
+
+    update_user_history(message.author.id, "violations", {
+        "triggered_word": triggered_word,
+        "category": category,
+        "severity": violation["severity"],
+        "reason": reason
+    })
+
+    if not config.get("log_channel_id"):
+        return violation
+
+    log_channel = bot.get_channel(config["log_channel_id"])
+    if not log_channel:
+        return violation
+
+    severity = severity_result.get("severity", 10) if severity_result else 10
+    if severity >= 9:
+        color = discord.Color.dark_red()
+    elif severity >= 7:
+        color = discord.Color.red()
+    elif severity >= 5:
+        color = discord.Color.orange()
+    else:
+        color = discord.Color.yellow()
+
+    log_embed = discord.Embed(
+        title=f"🚨 Violation Detected - Severity {severity}/10",
+        color=color,
+        timestamp=datetime.utcnow()
+    )
+
+    log_embed.add_field(name="User", value=f"{message.author.mention} ({message.author.id})", inline=False)
+    log_embed.add_field(name="Channel", value=message.channel.mention, inline=True)
+    log_embed.add_field(name="Severity", value=f"**{severity}/10**", inline=True)
+    log_embed.add_field(name="Triggered Word", value=f"**{triggered_word}**", inline=True)
+    log_embed.add_field(name="Category", value=category.replace("_", " ").title() if category else "Unknown", inline=True)
+
+    if message.content:
+        original_content = message.content[:1000] if len(message.content) <= 1000 else message.content[:1000] + "..."
+        log_embed.add_field(name="Original Message", value=f"```{original_content}```", inline=False)
+
+    if translated_text and translated_text != message.content:
+        translated_preview = translated_text[:1000] if len(translated_text) <= 1000 else translated_text[:1000] + "..."
+        log_embed.add_field(name="Translated", value=f"```{translated_preview}```", inline=False)
+
+    if severity_result:
+        log_embed.add_field(
+            name="AI Analysis",
+            value=f"**Context:** {severity_result.get('context', 'unknown')}\n**Reason:** {severity_result.get('reason', 'N/A')}",
+            inline=False
+        )
+
+    violation_count = get_user_violation_count(message.author.id)
+    log_embed.add_field(name="Violation Count", value=f"**{violation_count}** total", inline=True)
+
+    dm_sent, dm_status = await send_enhanced_dm(
+        message.author,
+        triggered_word or "unknown",
+        category or "unknown",
+        severity,
+        violation_count
+    )
+    log_embed.add_field(name="DM Status", value=dm_status, inline=True)
+
+    threshold = config.get("severity_threshold", 7)
+    if severity >= threshold:
+        log_embed.add_field(name="⚠️ Action Taken", value=f"Message deleted (severity {severity} ≥ threshold {threshold})", inline=False)
+    else:
+        log_embed.add_field(name="ℹ️ No Action", value=f"Logged only (severity {severity} < threshold {threshold})", inline=False)
+
+    log_embed.set_footer(text=f"User ID: {message.author.id} | Mode: {config.get('mod_mode', 'calm')}")
+
+    await log_channel.send(embed=log_embed)
+
+    if category in ["self_harm_promotion"] and config.get("mod_alert_channel_id"):
+        mod_channel = bot.get_channel(config["mod_alert_channel_id"])
+        if mod_channel:
+            alert_embed = discord.Embed(
+                title="🚨 CRITICAL VIOLATION - MODERATOR ALERT",
+                description="Immediate attention required",
+                color=discord.Color.red()
+            )
+            alert_embed.add_field(name="User", value=f"{message.author.mention} ({message.author.id})", inline=False)
+            alert_embed.add_field(name="Violation", value="Self-Harm Promotion", inline=False)
+            alert_embed.add_field(name="Content", value=message.content[:500], inline=False)
+            await mod_channel.send(embed=alert_embed, content="@moderators")
+
+    return violation
 
 def load_whitelist():
     global whitelist
@@ -356,87 +636,6 @@ async def translate_text_free(text):
         print(f"⚠️ Translation error: {e}")
         return text, 'unknown'
 
-async def log_violation(message, reason, translated_text, severity_result=None):
-    violation = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "user_id": message.author.id,
-        "user_name": str(message.author),
-        "channel_id": message.channel.id,
-        "channel_name": message.channel.name,
-        "message_content": message.content,
-        "translated_text": translated_text,
-        "reason": reason,
-        "severity": severity_result.get("severity") if severity_result else 10,
-        "ai_analysis": severity_result,
-        "attachments": [att.url for att in message.attachments]
-    }
-    
-    violation_logs.append(violation)
-    save_logs()
-    
-    daily_stats["messages_flagged"] += 1
-    daily_stats["users_caught"].add(message.author.id)
-    save_stats()
-    
-    if not config.get("log_channel_id"):
-        return
-    
-    log_channel = bot.get_channel(config["log_channel_id"])
-    if not log_channel:
-        return
-    
-    severity = severity_result.get("severity", 10) if severity_result else 10
-    if severity >= 9:
-        color = discord.Color.dark_red()
-    elif severity >= 7:
-        color = discord.Color.red()
-    elif severity >= 5:
-        color = discord.Color.orange()
-    else:
-        color = discord.Color.yellow()
-    
-    embed = discord.Embed(
-        title=f"🚨 Violation Detected - Severity {severity}/10",
-        color=color,
-        timestamp=datetime.utcnow()
-    )
-    
-    embed.add_field(name="User", value=f"{message.author.mention} ({message.author.id})", inline=False)
-    embed.add_field(name="Channel", value=message.channel.mention, inline=True)
-    embed.add_field(name="Severity", value=f"**{severity}/10**", inline=True)
-    
-    if message.content:
-        original_content = message.content[:1000] if len(message.content) <= 1000 else message.content[:1000] + "..."
-        embed.add_field(name="Original Message", value=f"```{original_content}```", inline=False)
-    
-    if translated_text and translated_text != message.content:
-        translated_preview = translated_text[:1000] if len(translated_text) <= 1000 else translated_text[:1000] + "..."
-        embed.add_field(name="Translated", value=f"```{translated_preview}```", inline=False)
-    
-    if severity_result:
-        embed.add_field(
-            name="AI Analysis", 
-            value=f"**Context:** {severity_result.get('context', 'unknown')}\n**Reason:** {severity_result.get('reason', 'N/A')}", 
-            inline=False
-        )
-    
-    if message.attachments:
-        embed.add_field(name="Attachments", value="\n".join([att.url for att in message.attachments]), inline=False)
-        for att in message.attachments:
-            if att.content_type and att.content_type.startswith('image'):
-                embed.set_thumbnail(url=att.url)
-                break
-    
-    threshold = config.get("severity_threshold", 7)
-    if severity >= threshold:
-        embed.add_field(name="⚠️ Action Taken", value=f"Message deleted (severity {severity} ≥ threshold {threshold})", inline=False)
-    else:
-        embed.add_field(name="ℹ️ No Action", value=f"Logged only (severity {severity} < threshold {threshold})", inline=False)
-    
-    embed.set_footer(text=f"User ID: {message.author.id} | Mode: {config.get('mod_mode', 'calm')}")
-    
-    await log_channel.send(embed=embed)
-
 async def generate_daily_report():
     if not config.get("log_channel_id"):
         return
@@ -528,44 +727,54 @@ async def daily_report_task():
 async def on_ready():
     load_config()
     load_slur_patterns()
+    load_slur_categories()
     load_logs()
     load_stats()
     load_whitelist()
-    
+    load_reports()
+    load_user_history()
+
     env_key_count = load_api_keys_from_env()
-    
+
     try:
         synced = await bot.tree.sync()
         print(f'✅ Synced {len(synced)} slash command(s)')
     except Exception as e:
         print(f'❌ Failed to sync commands: {e}')
-    
+
     if not daily_report_task.is_running():
         daily_report_task.start()
-    
+
     print(f'\n{"="*60}')
     print(f'✅ {bot.user} has connected to Discord!')
     print(f'{"="*60}')
     print(f'📊 Configuration:')
     print(f'   • Patterns loaded: {len(slur_patterns)}')
+    print(f'   • Categories loaded: {len(slur_categories)}')
     print(f'   • Whitelisted: {len(whitelist["users"])} users, {len(whitelist["roles"])} roles')
     print(f'   • Severity threshold: {config.get("severity_threshold", 7)}/10')
     print(f'   • Moderation mode: {config.get("mod_mode", "calm").upper()}')
     print(f'   • API keys: {len(config["gemini_api_keys"])} configured')
+    print(f'   • Report channel: {config.get("report_channel_id") or "Not set"}')
+    print(f'   • Mod alert channel: {config.get("mod_alert_channel_id") or "Not set"}')
     print(f'\n📋 Feature Status:')
     print(f'   ✅ Translation: Enabled')
     print(f'   ✅ Pattern Detection: Enabled')
     print(f'   ✅ AI Analysis (Gemini 2.5 Flash): Enabled')
+    print(f'   ✅ Enhanced DM System: Enabled')
+    print(f'   ✅ User Reporting: Enabled')
+    print(f'   ✅ Escalation Tracking: Enabled')
+    print(f'   ✅ User History: Enabled')
     print(f'   {"✅" if KEEPALIVE_AVAILABLE else "❌"} Keepalive Server: {"Enabled" if KEEPALIVE_AVAILABLE else "Disabled (optional)"}')
-    
+
     if config.get("mod_mode") == "relax":
         print(f'\n💡 RELAX MODE: Pattern-only, no AI usage')
     elif config.get("mod_mode") == "strict":
         print(f'\n⚠️ STRICT MODE: ALL messages sent to AI')
-    
+
     print(f'{"="*60}')
     print(f'🚀 Bot fully operational!\n')
-    
+
     print(f'🔍 Debug Info:')
     print(f'   • Bot enabled: {config.get("enabled")}')
     print(f'   • Monitored channel ID: {config.get("monitored_channel_id")}')
@@ -909,6 +1118,26 @@ async def setlog(interaction: discord.Interaction, channel: discord.TextChannel)
     save_config()
     await interaction.response.send_message(f"✅ Log channel: {channel.mention}", ephemeral=True)
 
+@bot.tree.command(name="setreportchannel")
+@app_commands.describe(channel="Channel to receive user reports")
+async def setreportchannel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        return
+    config["report_channel_id"] = channel.id
+    save_config()
+    await interaction.response.send_message(f"✅ Reports will be sent to {channel.mention}", ephemeral=True)
+
+@bot.tree.command(name="setmodchannel")
+@app_commands.describe(channel="Channel for critical moderator alerts")
+async def setmodchannel(interaction: discord.Interaction, channel: discord.TextChannel):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        return
+    config["mod_alert_channel_id"] = channel.id
+    save_config()
+    await interaction.response.send_message(f"✅ Mod alerts will be sent to {channel.mention}", ephemeral=True)
+
 @bot.tree.command(name="toggle")
 @app_commands.describe(enabled="Enable or disable")
 async def toggle(interaction: discord.Interaction, enabled: bool):
@@ -954,6 +1183,334 @@ async def forcereport(interaction: discord.Interaction):
         return
     await interaction.response.send_message("⏳ Generating report...", ephemeral=True)
     await generate_daily_report()
+
+@bot.tree.command(name="help")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🛡️ Moderation Bot Commands",
+        description="Here are all available commands:",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="👤 User Commands",
+        value="`/report` - Report a user for violations\n"
+              "`/ping` - Check bot latency",
+        inline=False
+    )
+
+    if interaction.user.guild_permissions.moderate_members:
+        embed.add_field(
+            name="🛡️ Moderator Commands",
+            value="`/case [user]` - View user violation history\n"
+                  "`/user [user]` - Check user status\n"
+                  "`/reports` - View pending reports\n"
+                  "`/stats` - View moderation statistics",
+            inline=False
+        )
+
+    if interaction.user.guild_permissions.administrator:
+        embed.add_field(
+            name="⚙️ Admin Commands",
+            value="`/setup [channel]` - Set monitored channel\n"
+                  "`/setlog [channel]` - Set log channel\n"
+                  "`/setreportchannel [channel]` - Set report channel\n"
+                  "`/setmodchannel [channel]` - Set mod alert channel\n"
+                  "`/setseverity [threshold]` - Set severity threshold\n"
+                  "`/modmode [mode]` - Set moderation mode\n"
+                  "`/toggle [enabled]` - Enable/disable bot\n"
+                  "`/whitelist_user [user]` - Whitelist a user\n"
+                  "`/whitelist_role [role]` - Whitelist a role\n"
+                  "`/status` - View bot status\n"
+                  "`/forcereport` - Generate daily report",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="ping")
+async def ping_command(interaction: discord.Interaction):
+    latency = round(bot.latency * 1000, 2)
+    embed = discord.Embed(
+        title="🏓 Pong!",
+        color=discord.Color.green() if latency < 100 else discord.Color.yellow()
+    )
+    embed.add_field(name="Latency", value=f"**{latency}ms**", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="stats")
+async def stats_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="📊 Moderation Statistics",
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+
+    embed.add_field(
+        name="Today",
+        value=f"**Scanned:** {daily_stats['messages_scanned']}\n"
+              f"**Flagged:** {daily_stats['messages_flagged']}\n"
+              f"**Unique Users:** {len(daily_stats['users_caught'])}",
+        inline=True
+    )
+
+    total_violations = len(violation_logs)
+    unique_offenders = len(set(v["user_id"] for v in violation_logs))
+    avg_severity = sum(v.get("severity", 0) for v in violation_logs) / total_violations if total_violations > 0 else 0
+
+    embed.add_field(
+        name="All Time",
+        value=f"**Total Violations:** {total_violations}\n"
+              f"**Unique Offenders:** {unique_offenders}\n"
+              f"**Avg Severity:** {avg_severity:.1f}/10",
+        inline=True
+    )
+
+    total_reports = len(reports_database.get("reports", []))
+    pending_reports = len([r for r in reports_database.get("reports", []) if r.get("status") == "pending"])
+    embed.add_field(
+        name="Reports",
+        value=f"**Total Reports:** {total_reports}\n"
+              f"**Pending:** {pending_reports}",
+        inline=True
+    )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="report")
+@app_commands.describe(
+    user="User to report",
+    reason="Reason for report",
+    description="Detailed description",
+    evidence="Evidence links"
+)
+async def report_user(
+    interaction: discord.Interaction,
+    user: discord.User,
+    reason: str,
+    description: str = "",
+    evidence: str = ""
+):
+    report_id = generate_report_id()
+
+    report_data = {
+        "report_id": report_id,
+        "reported_user_id": user.id,
+        "reporter_id": interaction.user.id,
+        "reason": reason,
+        "description": description,
+        "evidence": evidence,
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "pending"
+    }
+
+    reports_database["reports"].append(report_data)
+    save_reports()
+
+    update_user_history(user.id, "reports", {
+        "report_id": report_id,
+        "reason": reason
+    })
+
+    report_embed = discord.Embed(
+        title=f"📋 New Report - #{report_id}",
+        description=f"Report against **{user}**",
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+
+    report_embed.add_field(
+        name="Reported User",
+        value=f"{user.mention}\n**ID:** {user.id}",
+        inline=True
+    )
+
+    report_embed.add_field(
+        name="Report Info",
+        value=f"**Reason:** {reason}\n"
+              f"**Reporter:** {interaction.user.mention}\n"
+              f"**Status:** Pending Review",
+        inline=True
+    )
+
+    if description:
+        report_embed.add_field(
+            name="Description",
+            value=description[:1000],
+            inline=False
+        )
+
+    if evidence:
+        report_embed.add_field(
+            name="Evidence",
+            value=evidence,
+            inline=False
+        )
+
+    report_embed.set_footer(text=f"Report ID: {report_id}")
+
+    class ReportActionView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=None)
+            self.add_item(discord.ui.Button(
+                style=discord.ButtonStyle.green,
+                label="Take Action",
+                custom_id=f"report_action_{report_id}"
+            ))
+            self.add_item(discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label="Request Info",
+                custom_id=f"report_info_{report_id}"
+            ))
+            self.add_item(discord.ui.Button(
+                style=discord.ButtonStyle.danger,
+                label="Dismiss",
+                custom_id=f"report_dismiss_{report_id}"
+            ))
+
+    await send_report_channel(report_embed, ReportActionView(), report_data)
+
+    confirmation_embed = discord.Embed(
+        title="✅ Report Submitted",
+        description=f"Thank you for reporting **{user.name}**.\n\n"
+                    f"Our moderation team will review your report shortly.",
+        color=discord.Color.green()
+    )
+    confirmation_embed.add_field(name="Report ID", value=f"**{report_id}**", inline=False)
+    confirmation_embed.add_field(
+        name="What Happens Next?",
+        value="1. A moderator will review your report\n"
+              "2. If necessary, action will be taken\n"
+              "3. You may be contacted for additional information\n"
+              "4. The reporter will remain anonymous to the reported user",
+        inline=False
+    )
+
+    await interaction.response.send_message(embed=confirmation_embed, ephemeral=True)
+
+@bot.tree.command(name="reports")
+@app_commands.describe(status="Filter by status", limit="Number to show")
+async def view_reports(interaction: discord.Interaction, status: str = "pending", limit: int = 10):
+    if not interaction.user.guild_permissions.moderate_members:
+        await interaction.response.send_message("❌ Moderator only.", ephemeral=True)
+        return
+
+    filtered_reports = [
+        r for r in reports_database.get("reports", [])
+        if r.get("status") == status
+    ][:limit]
+
+    embed = discord.Embed(
+        title=f"📋 Reports ({status})",
+        color=discord.Color.blue()
+    )
+
+    if not filtered_reports:
+        embed.add_field(name="No Reports", value=f"No {status} reports found.", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    for report in filtered_reports:
+        reported_user = bot.get_user(report["reported_user_id"])
+        embed.add_field(
+            name=f"Report {report['report_id']}",
+            value=f"**Reported:** {reported_user.mention if reported_user else 'Unknown'}\n"
+                  f"**Reason:** {report['reason']}\n"
+                  f"**Date:** {report['timestamp'][:10]}",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="case")
+@app_commands.describe(user="User to check")
+async def case_command(interaction: discord.Interaction, user: discord.User):
+    user_violations = [log for log in violation_logs if log.get("user_id") == user.id]
+    history = get_user_history(user.id)
+
+    if not user_violations:
+        embed = discord.Embed(
+            title="✅ Clean Record",
+            description=f"{user.mention} has no violations",
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=user.display_avatar.url)
+        if user.id in whitelist["users"]:
+            embed.add_field(name="Status", value="⚪ Whitelisted", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title=f"📋 Violation History: {user.name}",
+        description=f"**ID:** {user.id}\n**Total Violations:** {len(user_violations)}",
+        color=discord.Color.red()
+    )
+    embed.set_thumbnail(url=user.display_avatar.url)
+
+    severities = [v.get("severity", 0) for v in user_violations]
+    avg = sum(severities) / len(severities) if severities else 0
+    embed.add_field(name="Statistics", value=f"Avg: {avg:.1f}/10\nMax: {max(severities) if severities else 0}/10", inline=False)
+
+    violation_types = {}
+    for v in user_violations:
+        cat = v.get("category", "Unknown")
+        violation_types[cat] = violation_types.get(cat, 0) + 1
+
+    if violation_types:
+        type_text = "\n".join([f"**{k.replace('_', ' ').title()}:** {v}" for k, v in violation_types.items()])
+        embed.add_field(name="Violation Types", value=type_text, inline=False)
+
+    for i, v in enumerate(user_violations[-5:], 1):
+        case_num = len(user_violations) - 5 + i
+        timestamp = datetime.fromisoformat(v["timestamp"]).strftime("%Y-%m-%d %H:%M")
+        severity = v.get("severity", "?")
+        word = v.get("triggered_word", "N/A")
+        content = v["message_content"][:80] + "..." if len(v["message_content"]) > 80 else v["message_content"]
+
+        embed.add_field(
+            name=f"Case #{case_num}",
+            value=f"**{timestamp}** | Severity: {severity}/10\n"
+                  f"**Word:** {word}\n"
+                  f"`{content}`",
+            inline=False
+        )
+
+    if len(user_violations) > 5:
+        embed.set_footer(text=f"Showing last 5 of {len(user_violations)}")
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="user")
+@app_commands.describe(user="User to check")
+async def user_command(interaction: discord.Interaction, user: discord.User):
+    violation_count = get_user_violation_count(user.id)
+    history = get_user_history(user.id)
+
+    embed = discord.Embed(
+        title=f"👤 User Info: {user.name}",
+        description=f"**ID:** {user.id}",
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_thumbnail(url=user.display_avatar.url)
+
+    embed.add_field(name="Total Violations", value=str(violation_count), inline=True)
+
+    if violation_count > 0:
+        recent_violations = [v for v in violation_logs if v.get("user_id") == user.id][-3:]
+        recent_text = "\n".join([
+            f"• {v.get('triggered_word', 'N/A')} ({v.get('severity', '?')}/10)"
+            for v in recent_violations
+        ])
+        embed.add_field(name="Recent Violations", value=recent_text or "None", inline=False)
+
+    report_count = len([r for r in history.get("reports", [])])
+    embed.add_field(name="Reports Filed", value=str(report_count), inline=True)
+
+    if user.id in whitelist["users"]:
+        embed.add_field(name="Status", value="⚪ Whitelisted", inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.event
 async def on_message(message):
