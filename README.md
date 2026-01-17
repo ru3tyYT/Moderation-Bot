@@ -1,8 +1,8 @@
 # 🛡️ Discord AI Moderation Bot
 
-> **Advanced Discord moderation bot with AI-powered context detection, free translation, and intelligent severity rating system.**
+> **Advanced Discord moderation bot with AI-powered context detection, free translation, intelligent severity rating, user reporting system, and comprehensive violation tracking.**
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.8+--blue.svg)](https://www.python.org/downloads/)
 [![Discord.py](https://img.shields.io/badge/discord.py-2.3.2-blue.svg)](https://github.com/Rapptz/discord.py)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Cost](https://img.shields.io/badge/Cost-FREE-brightgreen.svg)](README.md)
@@ -18,51 +18,36 @@
 - **Multi-Language Support** - Auto-translates and checks all languages
 
 ### 🔍 Advanced Detection
-- **Pattern Matching** - Catches 200+ variations per word (leetspeak, spacing, unicode)
-- **Slur Database** - 150+ slurs organized by category
+- **Pattern Matching** - Catches 500+ variations per word (leetspeak, spacing, unicode)
+- **Slur Database** - 800+ slurs organized by category (racial, homophobic, ableist, self-harm, religious hate)
+- **Bypass Detection** - Extensive unicode substitution and spacing variation detection
 - **Whitelist System** - Trusted users/roles bypass filters
 - **Three Moderation Modes** - Strict, Calm, and Relax modes
+
+### 📝 User Reporting System
+- **/report Command** - Any user can report violations without admin permissions
+- **Interactive Modal** - Dropdown reasons, description field, evidence links
+- **Dedicated Report Channel** - Reports appear in separate channel with action buttons
+- **Anonymous Reporting** - Reporter identity protected from reported user
+- **Report Tracking** - Full history of all reports with status tracking
+
+### 📋 Enhanced Violation Handling
+- **Detailed DM Notifications** - Shows triggered word and pre-filled warning templates
+- **Escalation System** - Automatic consequences for repeat offenders (warnings → mutes → bans)
+- **User History** - Complete violation history per user with trends
+- **Violation Categories** - Track types of violations (racial slurs, hate speech, etc.)
 
 ### 📊 Comprehensive Logging
 - **User History Tracking** - View complete violation history per user
 - **Daily Reports** - Beautiful graphs sent at midnight EST
-- **Detailed Violation Logs** - Includes severity, AI analysis, and proof
+- **Detailed Violation Logs** - Includes severity, AI analysis, triggered word, and proof
 - **Real-Time Statistics** - Track messages scanned, flagged, and more
+- **Report Logging** - All user reports logged with moderator actions
 
 ### 💰 Zero Cost
 - **FREE Translation** - deep-translator (no API key needed)
 - **FREE AI** - Gemini (60 requests/min per key)
 - **Total Cost: $0/month**
-
----
-
-## 📸 Screenshots
-
-### Violation Report
-```
-🚨 Violation Detected - Severity 8/10
-
-User: @BadUser (123456789)
-Channel: #general
-Severity: 8/10
-
-Original Message: "you're a retard"
-Translated: "you're a retard"
-
-AI Analysis:
-Context: hostile
-Reason: Clear use of ableist slur with negative intent
-
-⚠️ Action Taken
-Message deleted (severity 8 ≥ threshold 7)
-```
-
-### Daily Report
-Automatically generated graph showing:
-- Messages scanned vs flagged
-- Hourly activity breakdown
-- Clean vs flagged pie chart
-- Summary statistics
 
 ---
 
@@ -91,12 +76,175 @@ pip install -r requirements.txt
 Create a `.env` file:
 ```bash
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 4. **Run the bot**
 ```bash
 python bot.py
 ```
+
+---
+
+## 📋 Commands
+
+### User Commands (Everyone)
+| Command | Description |
+|---------|-------------|
+| `/report [user] [reason] [description] [evidence]` | Report a user for violations |
+| `/help` | Show all available commands |
+| `/ping` | Check bot latency |
+
+### Moderator Commands
+| Command | Description |
+|---------|-------------|
+| `/case [user]` | View user's complete violation history |
+| `/user [user]` | Quick user status summary |
+| `/reports [status] [limit]` | View pending reports |
+| `/stats` | View moderation statistics |
+
+### Admin Commands
+| Command | Description |
+|---------|-------------|
+| `/setup [channel]` | Set monitored channel |
+| `/setlog [channel]` | Set violation log channel |
+| `/setreportchannel [channel]` | Set user report channel |
+| `/setmodchannel [channel]` | Set critical alert channel |
+| `/setseverity [threshold]` | Set severity threshold (1-10) |
+| `/modmode [mode]` | Set moderation mode (strict/calm/relax) |
+| `/toggle [enabled]` | Enable/disable bot |
+| `/whitelist_user [user]` | Whitelist a user |
+| `/whitelist_role [role]` | Whitelist a role |
+| `/forcereport` | Generate daily report immediately |
+| `/status` | View bot status and configuration |
+
+---
+
+## ⚙️ Configuration
+
+### Severity Threshold
+- **1-5**: Lenient - Only severe violations caught
+- **6-7**: Balanced - Recommended default
+- **8-10**: Strict - Catches more violations
+
+### Moderation Modes
+- **Relax**: Pattern-only detection, no AI, instant delete
+- **Calm**: Pattern detection first, AI for flagged messages (recommended)
+- **Strict**: All messages sent to AI, highest accuracy
+
+### Escalation System
+| Violations | Action |
+|------------|--------|
+| 1-2 | Warning (DM only) |
+| 3 | Mute 1 hour |
+| 4 | Mute 24 hours |
+| 5 | Mute 7 days |
+| 6+ | Permanent ban |
+
+---
+
+## 📁 Files
+
+| File | Description |
+|------|-------------|
+| `bot.py` | Main bot file with all commands and logic |
+| `pattern_detector.py` | Advanced pattern matching engine |
+| `slur_patterns.json` | Banned words database (800+ terms) |
+| `config.json` | Bot configuration (auto-generated) |
+| `violation_logs.json` | Violation history (auto-generated) |
+| `reports.json` | User reports database (auto-generated) |
+| `user_history.json` | Per-user history (auto-generated) |
+| `keepalive.py` | Web server for hosting platforms |
+
+---
+
+## 🏢 Hosting
+
+### Keepalive Server
+The `keepalive.py` file provides a Flask web server that:
+- Keeps the bot alive on hosting platforms (Pterodactyl, WispByte, etc.)
+- Provides a status page at `http://your-server-ip:8080`
+- Auto-pings every 5 minutes to prevent idling
+
+**Optional** - Not needed if hosting on a dedicated server or using process managers like PM2.
+
+### Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DISCORD_BOT_TOKEN` | Yes | Your Discord bot token |
+| `GEMINI_API_KEY` | Yes | Google Gemini API key |
+| `GEMINI_API_KEY_1` | No | Additional API keys (up to 20) |
+
+---
+
+## 📊 Features Breakdown
+
+### Detection Categories
+1. **Racial/Ethnic Slurs** - 200+ terms
+2. **Homophobic/Transphobic Slurs** - 50+ terms
+3. **Ableist Slurs** - 40+ terms
+4. **Self-Harm Promotion** - 40+ terms (kys, kms, suicide encouragement)
+5. **Religious Hate Speech** - 30+ terms
+6. **Sexist/Gendered Slurs** - 50+ terms
+7. **Multi-Language Slurs** - 30+ terms
+
+### Bypass Detection
+The bot catches:
+- Leetspeak (n1gg4, sp1c, etc.)
+- Spacing variations (n i g g a)
+- Unicode substitution (Cyrillic, Greek, etc.)
+- Symbol substitution (@ for a, $ for s, etc.)
+- Combined bypass attempts
+
+---
+
+## 🔒 Safety Features
+
+### Self-Harm Detection
+- Automatically detects self-harm encouragement
+- Sends crisis resources in DM to user
+- Alerts moderators immediately
+- High priority for human review
+
+### Anonymous Reporting
+- Reporter identity hidden from reported user
+- Only visible to moderators
+- Protects users from retaliation
+
+---
+
+## 📈 Statistics Tracked
+
+- Messages scanned per hour
+- Violations by category
+- Top violation types
+- Most warned users
+- Report statistics
+- Daily/Monthly trends
+
+---
+
+## 💡 Tips
+
+1. **Start with Calm mode** - Good balance of accuracy and API usage
+2. **Set severity to 7** - Recommended threshold
+3. **Use whitelist** - Exclude trusted bots and roles
+4. **Monitor daily reports** - Adjust settings based on trends
+5. **Review user history** - Use `/case` on repeat offenders
+
+---
+
+## 📝 License
+
+MIT License - Feel free to use and modify for your server.
+
+---
+
+## 🙏 Credits
+
+- [discord.py](https://github.com/Rapptz/discord.py) - Discord API wrapper
+- [Google Gemini](https://gemini.google.com/) - AI-powered context analysis
+- [deep-translator](https://pypi.org/project/deep-translator/) - Free translation API
 
 5. **Configure in Discord**
 ```bash
@@ -1516,4 +1664,4 @@ If this bot helped your server, consider:
 
 **Made with ❤️ for safer Discord communities**
 
-*Last updated: 2025*
+*Last updated: 2026*
